@@ -7,12 +7,16 @@ Použití: python3 <skill>/tools/novy_projekt.py <cílová složka> [--ukazka] [
                   které jdou na web archivu mimo brzdu tools/slusne.py; --bez-hlidace ho vypne
 
 Vytvoří: data/ (prázdné kostry nebo ukázka), web/ (Astro web), tools/ (kopie nástrojů),
-vyrezy/, zdroje/, dokumenty/, pracovni/, CLAUDE.md, .gitignore, .gitattributes (konce řádků LF i na Windows)
-a .claude/launch.json (náhled v Claude desktop). Do .claude/settings.json doplní zákaz přímého curl/wget
-(stahování z archivů jde přes brzdu tools/slusne.py); ostatní nastavení v souboru nechá beze změny.
+vyrezy/, zdroje/, dokumenty/, pracovni/, AGENTS.md (pokyny pro agenta – Codex, Cursor, OMP) a CLAUDE.md
+(jen odkaz @AGENTS.md, aby Claude Code četl tentýž text), .gitignore, .gitattributes (konce řádků LF
+i na Windows) a .claude/launch.json (náhled v Claude desktop).
+Do .claude/settings.json doplní zákaz přímého curl/wget (stahování z archivů jde přes brzdu tools/slusne.py);
+ostatní nastavení v souboru nechá beze změny.
 Existující data nepřepisuje.
 Aktualizace staršího projektu (znovu spustit na stejnou složku): tools/ se přepíše vždy a soubory webu,
 které se liší od nové šablony, taky – jejich staré verze se nejdřív uloží do pracovni/zaloha_web_<datum>/.
+Pokyny ze starého CLAUDE.md se přesunou do AGENTS.md (obsah zůstane) a CLAUDE.md dostane odkaz @AGENTS.md;
+původní CLAUDE.md se nejdřív uloží do pracovni/zaloha_pokyny_<datum>/.
 """
 import filecmp, json, os, shutil, sys, time
 for _s in (sys.stdout, sys.stderr):   # UTF-8 výstup i na Windows bez -X utf8 (cp1250 neumí třeba „→“)
@@ -91,6 +95,34 @@ def nastaveni(dst, hlidac):
     print("Hlídač sítě:", "zapnutý" if zapnuty else "vypnutý (zapnout: --hlidac)")
 
 
+def pokyny(dst):
+    """Pokyny pro agenta: jeden zdroj AGENTS.md (Codex, Cursor, OMP), CLAUDE.md ho jen načte odkazem @AGENTS.md.
+
+    Projekt ze starší verze má pokyny v CLAUDE.md (často s vlastními pravidly, např. pro Windows). Jeho obsah se
+    přesune do AGENTS.md beze změny, CLAUDE.md dostane odkaz ze šablony a původní CLAUDE.md se zazálohuje do
+    pracovni/zaloha_pokyny_<datum>/. Claude Code tak čte stejný text jako dřív. Symlinky a projekty, které už
+    mají oba soubory s různým obsahem, nechá být. Chybějící soubory pak doplní šablona.
+    """
+    claude, agents = os.path.join(dst, "CLAUDE.md"), os.path.join(dst, "AGENTS.md")
+    if not os.path.isfile(claude) or os.path.islink(claude):
+        return
+    with open(claude, encoding="utf-8", errors="replace") as f:
+        if "@AGENTS.md" in f.read():
+            return   # už odkazuje na AGENTS.md
+    if os.path.lexists(agents) and (os.path.islink(agents) or not filecmp.cmp(claude, agents, shallow=False)):
+        print("CLAUDE.md i AGENTS.md mají různý obsah – nechávám je beze změny. Claude Code čte CLAUDE.md, Codex,"
+              " Cursor a OMP AGENTS.md; sjednoťte je (do CLAUDE.md stačí řádek @AGENTS.md).")
+        return
+    zaloha = os.path.join(dst, "pracovni", "zaloha_pokyny_" + time.strftime("%Y%m%d-%H%M%S"))
+    os.makedirs(zaloha, exist_ok=True)
+    shutil.copy2(claude, os.path.join(zaloha, "CLAUDE.md"))
+    if not os.path.lexists(agents):
+        shutil.copy2(claude, agents)   # obsah beze změny
+    copy(os.path.join(SKILL, "template", "CLAUDE.md"), claude)
+    print("Pokyny pro agenta přesunuty z CLAUDE.md do AGENTS.md (obsah beze změny); CLAUDE.md je teď jen načítá"
+          f" odkazem @AGENTS.md. Původní CLAUDE.md je v {zaloha}.")
+
+
 def main():
     if len(sys.argv) < 2 or sys.argv[1].startswith("-"):
         sys.exit(__doc__)
@@ -119,7 +151,9 @@ def main():
     for d in ("vyrezy", "zdroje", "dokumenty", "pracovni"):
         os.makedirs(os.path.join(dst, d), exist_ok=True)
     os.makedirs(os.path.join(dst, ".claude"), exist_ok=True)
-    for name in ("CLAUDE.md", ".gitignore", ".gitattributes", "poznamky_pro_skill.md", os.path.join(".claude", "launch.json")):
+    pokyny(dst)
+    for name in ("AGENTS.md", "CLAUDE.md", ".gitignore", ".gitattributes", "poznamky_pro_skill.md",
+                 os.path.join(".claude", "launch.json")):
         out = os.path.join(dst, name)
         if not os.path.lexists(out):
             copy(os.path.join(SKILL, "template", name), out)
