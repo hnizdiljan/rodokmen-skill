@@ -18,7 +18,7 @@ def magick():
     m = najdi_magick()
     if not m:
         sys.exit("Chybí ImageMagick (příkaz magick). Nainstaluj ho (macOS: brew install imagemagick, "
-                 "Windows: winget install ImageMagick.ImageMagick a restart Claude Code) a spusť nástroj znovu.")
+                 "Windows: winget install ImageMagick.ImageMagick a restart Claude Code / Codexu / Cursoru / OMP) a spusť nástroj znovu.")
     return m
 
 
