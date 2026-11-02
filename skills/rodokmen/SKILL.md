@@ -32,7 +32,7 @@ Najdeš v ní `tools/` (nástroje), `template/` (šablona projektu a webu) a `re
    a pokračuj podle sekce „Rozpracováno“. Krátce uživateli shrň, kde jste skončili.
    **Verze:** porovnej soubor `.skill_verze` v projektu se `SKILL_DIR/VERZE`. Chybí-li, nebo se liší, řekni jednou větou,
    že je nová verze skillu, a nabídni aktualizaci projektu: `python3 -I SKILL_DIR/tools/novy_projekt.py <složka projektu>`
-   (data zůstanou, změněné soubory webu se zazálohují do `pracovni/`), pak ve `web/` `npm install`. Po souhlasu ji udělej
+   (data zůstanou, změněné soubory webu se zazálohují do `pracovni/`), pak ve `web/` `npm ci` s kompatibilní verzí Node.js. Stejnou verzi použij i pro build. Po souhlasu ji udělej
    a podle výpisu převezmi ze zálohy případné úpravy vzhledu (viz `reference/web.md`). Odmítne-li, připomeň to až příště.
    Aktualizace z verze starší než 0.6.0 přidá brzdu proti zablokování archivem: zeptej se i na hlídač sítě (viz Fáze 0,
    krok 2). Po aktualizaci řekni uživateli, ať pro jistotu restartuje Claude Code – změny v `.claude/settings.json`
@@ -48,7 +48,7 @@ Najdeš v ní `tools/` (nástroje), `template/` (šablona projektu a webu) a `re
 2. Projekt ještě není → **Fáze 0**.
 
 ## Fáze 0 – Příprava (jednou)
-1. Zkontroluj nástroje: `python3 --version` (≥ 3.9), `node --version` (≥ 22.12 – Astro 7 na Node 20 nesestaví web), `magick -version` (ImageMagick 7; je-li jen
+1. Zkontroluj nástroje: `python3 --version` (≥ 3.9), `node --version` (≥ 22.19 – Astro 7 na Node 20 nesestaví web a jeho knihovna undici chce 22.19), `magick -version` (ImageMagick 7; je-li jen
    verze 6 s příkazem `convert`, nástroje ji mimo Windows použijí samy), `git --version`.
    Co chybí, pomoz nainstalovat (macOS: Homebrew `brew install python node imagemagick git`; Windows: winget / instalátory
    z python.org, nodejs.org, imagemagick.org). **winget na Windows vždy s plnými přepínači**, jinak spadne na otázce
@@ -74,7 +74,7 @@ Najdeš v ní `tools/` (nástroje), `template/` (šablona projektu a webu) a `re
 2. Zeptej se, kde má projekt být (navrhni `~/Rodokmen`), a založ ho:
    `python3 -I SKILL_DIR/tools/novy_projekt.py <složka>`
    Chce-li uživatel nejdřív vidět, jak web vypadá, založ vedle ukázku: `… novy_projekt.py ~/Rodokmen-ukazka --ukazka`,
-   pak `cd web && npm install && npm run nahled` a pošli mu odkaz http://localhost:4321.
+   pak `cd web && npm ci && npm run nahled` a pošli mu odkaz http://localhost:4321.
    Pak se zeptej, jestli zapnout **hlídač sítě** (`… novy_projekt.py <složka> --hlidac`, vypnutí `--bez-hlidace`).
    Vysvětli jednou větou: archivy blokují IP adresu po sérii rychlých dotazů. Hlídač je malý skript v projektu
    (`tools/hlidac_site.py`), který před každým příkazem zkontroluje, že stahování jde přes brzdu, a jinak ho zamítne.
@@ -154,7 +154,7 @@ Základní smyčka pro každou osobu:
    3. výřez: `python3 -I tools/vyrez.py pracovni/<stránka>.jpg <klíč> x0,y0,x1,y1` (velkoryse – celý zápis s hlavičkou sloupců a okrajovými poznámkami),
    4. rámeček čteného místa: `python3 -I tools/ramecek.py <klíč> x0,y0,x1,y1` a **prohlédni si** `pracovni/ramecek_<klíč>.jpg`,
    5. přepis originálu a český překlad do `data/prepisy.json` (nejistá místa „(?)“, nečitelná „[…]“),
-   6. osobu/osoby do `data/osoby.py` (`f` fakta, `r` klíč zápisu, `st="doc"`), sourozence a kmotry-příbuzné do `SIDE`.
+   6. osobu/osoby do `data/osoby.py` (`f` fakta, `r` klíč zápisu, `st="doc"`), sourozence, jejich partnery a děti do `RODINA`, nejisté příbuzné jen jako poznámku do `SIDE`.
    Při převzetí staršího výzkumu bez původních snímků nevytvářej náhradní výřezy ani rámečky. Zachovej informaci,
    že podklad chybí; souhrn obsahu není doslovný přepis a chybějící výřez či rámeček dál hlásí `kontrola.py`.
 6. **Zapiš hledání do deníku** `data/research_log.md` – i neúspěšné, s rozsahem (které roky / snímky jsi prošel).
@@ -229,26 +229,29 @@ Linie končí, když matriky mlčí (nemanželské dítě bez otce, shořelé kn
 v 17. století. Zapiš to do `ISSUES`/`archivni_dotazy.md` a jdi na jinou větev. Průběžně aktualizuj `data/STAV.md`
 („Rozpracováno“), aby šlo kdykoli navázat.
 
-## Fáze 3 – Zajímavosti a Příběh hlavního rodu
+## Fáze 3 – Zajímavosti a příběhy rodů
 Podrobně `reference/pribehy.md`. Tohle je to, co rodina na webu čte nejradši, takže na to nezapomínej a nenechávej to na konec.
 - **Zajímavosti** („fun facts“) sbírej **průběžně**: co najdeš při čtení, hned zapiš do `data/zajimavosti.md`
   a řekni uživateli. Po každém kole spusť `python3 -I tools/napady.py`. Najde v datech svatby krátce před porodem,
   rod v jednom domě, sňatky příbuzných, dlouhověkost, epidemie… Ověř a napiš jako krátké příběhy.
-- **„Příběh <hlavního rodu>“** (Příběh Novákových): jakmile má hlavní rod ~5 doložených generací, nabídni ho.
-  Koncept napiš **do chatu** ke schválení, pak `data/pribeh.md` a v `web.json` menu, tlačítko a úvod.
+- **Příběhy rodů:** jakmile má hlavní rod ~5 doložených generací, nabídni příběh. Koncept napiš **do chatu** ke schválení,
+  pak ho ulož do `data/pribeh.md`. Pro více příběhů používej `data/pribehy/<slug>.md`; viz `reference/pribehy.md`.
+  Soukromí zkontroluj ve všech příbězích, ne pouze v hlavním.
   Je hlavní věcí na úvodní stránce webu.
 
 ## Fáze 4 – Web
 Podrobně `reference/web.md`. Ve zkratce:
-1. `cd web && npm install` (jednou), pak `npm run nahled` → http://localhost:4321 – ukaž uživateli. V cloudovém prostředí
+1. `cd web && npm ci` (čistá instalace), pak `npm run nahled` → http://localhost:4321 – ukaž uživateli. Použij Node.js ≥22.19.0 pro instalaci i build. V cloudovém prostředí
    (claude.ai i cloud agent v Cursoru) localhost neuvidí – pošli mu snímky stránek (headless prohlížeč) nebo nasaď náhled.
 2. Nastav `data/web.json`: název, úvod, kontakt a **přihlašovací otázku a odpověď** (web je jen pro rodinu).
+   Web má i stránky **Statistiky** a **Domy** (mapa domů předků – polohy „obec čp.“ z matrik dohledá skill
+   **stare-adresy**, jeho `domy.geojson` patří do `data/domy/`; viz `reference/web.md`).
 3. Po každé změně dat: `npm run data && npm run build` (nebo znovu `npm run nahled`). Hlášky `POZOR: nefunkční odkaz`
    oprav hned (adresa osoby se mění, když se jí doplní rok narození).
    Po každém větším kole hledání zkontroluj i texty úvodu ve `web.json` (`uvod`, `zajimavosti_na_uvodu`) –
    zastarávají („nejstarší předek je…“, počty generací).
 4. Před zveřejněním si vezmi `reference/soukromi.md` a projdi s uživatelem, co na webu bude (žijící lidé!).
-   Na web jde i „Co hledáme“ (`ISSUES`), poznámky osob a deník. Hlášky `CITLIVÉ` z `kontrola.py` vyřeš s uživatelem;
+   Na web jde i „Co hledáme“ (`ISSUES`), poznámky osob, deník a všechny soubory `data/pribehy/*.md`. Hlášky `CITLIVÉ` z `kontrola.py` vyřeš s uživatelem;
    co na webu nechat smí, zapiš úryvkem textu do `web.json` → `citlive_schvaleno` (pak se už nehlásí).
 
 ## Fáze 5 – Zveřejnění (volitelné, jen se souhlasem)
@@ -287,12 +290,12 @@ Nedělej to pořád. Postup:
 | Cesta | K čemu |
 |---|---|
 | `data/STAV.md` | vstupní bod: pro koho, pravidla, rozpracované věci |
-| `data/osoby.py` | předci (Kekulého čísla), rody `LINES`, boční příbuzní `SIDE`, otázky `ISSUES`, `HYPOTEZY`, `SAME` |
+| `data/osoby.py` | předci (Kekulého čísla), rody `LINES`, další osoby `RODINA`, poznámky `SIDE`, otázky `ISSUES`, `HYPOTEZY`, `SAME` |
 | `data/zaznamy.json`, `data/svazky.json` | zápisy z matrik a svazky, ze kterých jsou |
 | `data/prepisy.json`, `data/zvyrazneni.json` | přepisy s překlady, rámečky čteného místa |
 | `data/research_log.md` | deník všech hledání |
 | `data/udaje_od_rodiny.md`, `data/archivni_dotazy.md` | co víme od rodiny; co jen v archivu |
-| `data/zajimavosti.md`, `data/pribeh.md`, `data/web.json`, `data/dokumenty.json`, `data/mista.json` | texty a nastavení webu, rodinné fotky, místa na mapě |
+| `data/zajimavosti.md`, `data/pribeh.md`, `data/pribehy/*.md`, `data/web.json`, `data/dokumenty.json`, `data/mista.json` | texty a nastavení webu, rodinné fotky, místa na mapě |
 | `vyrezy/`, `zdroje/` | výřezy zápisů a dokumentů (web / plné rozlišení), název = klíč + `.jpg` |
 | `dokumenty/`, `pracovni/` | originály od rodiny; pracovní soubory (nejdou na web) |
 | `poznamky_pro_skill.md` | poznámky pro správce skillu (chyby, nové archivy, nápady) – posílá je uživatel ručně |

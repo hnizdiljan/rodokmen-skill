@@ -79,6 +79,28 @@ def main():
         for r in s.get("r", []):
             if r not in keys:
                 err.append(f"boční příbuzný '{s.get('n')}' cituje neexistující zápis '{r}'")
+    R = ns.get("RODINA", {})
+    odkazy = {v for o in R.values() for v in [o.get("otec"), o.get("matka"), *o.get("partner", [])] if isinstance(v, str)}
+    for oid, o in R.items():
+        kde = f"RODINA '{oid}' ({o.get('n')})"
+        if o.get("sex") not in ("M", "F"):
+            err.append(f"{kde}: chybí sex=\"M\" nebo \"F\"")
+        if o.get("st", "fam") not in ("doc", "prob", "fam", "mh", "unk"):
+            err.append(f"{kde}: neznámý stav '{o.get('st')}'")
+        for pole in ("otec", "matka"):
+            v = o.get(pole)
+            if isinstance(v, str) and v not in R:
+                err.append(f"{kde}: {pole} '{v}' není v RODINA")
+            elif isinstance(v, int) and v < 2:
+                err.append(f"{kde}: {pole} {v} – číslo předka musí být aspoň 2")
+        for v in o.get("partner", []):
+            if isinstance(v, str) and v not in R or isinstance(v, int) and v not in P and v not in SAME:
+                err.append(f"{kde}: partner {v!r} neexistuje")
+        if not (o.get("otec") or o.get("matka") or o.get("partner")) and oid not in odkazy:
+            err.append(f"{kde}: není s nikým spojen (chybí otec, matka i partner)")
+        for r in o.get("r", []):
+            if r not in keys:
+                err.append(f"{kde} cituje neexistující zápis '{r}'")
     for a, c in SAME.items():
         if c not in P:
             err.append(f"SAME: {a} -> {c}, ale osoba {c} neexistuje")
@@ -86,7 +108,7 @@ def main():
         if k not in range(8, 16):
             err.append(f"LINES: rod {k} – rody mají čísla 8 až 15 (pradědečci a prababičky)")
 
-    cited = ({r for p in P.values() for r in p.get("r", [])} | {r for s in SIDE for r in s.get("r", [])}
+    cited = ({r for p in list(P.values()) + list(R.values()) for r in p.get("r", [])} | {r for s in SIDE for r in s.get("r", [])}
              | {r for h in ns.get("HYPOTEZY", []) if isinstance(h, dict) for r in h.get("zaznamy", [])})
     for z in zaz:
         k = z.get("klic", "?")
@@ -147,9 +169,18 @@ def main():
         roky = [int(y) for y in re.findall(r"\b1[5-9]\d\d|20\d\d\b", p.get("y", "") + " " + text)]
         texty.append((f"osoba {k}", text + (f" {hranice}" if roky and min(roky) >= 1870 or k < 8 else "")))
     texty += [(f"boční příbuzný {s.get('n')}", s.get("n", "") + " " + s.get("t", "")) for s in SIDE]
+    texty += [(f"RODINA {oid}", " ".join(o.get("f", [])) + " " + o.get("note", "") + " " + o.get("y", "")) for oid, o in R.items()]
     for f in ("zajimavosti.md", "pribeh.md"):
-        if os.path.exists(os.path.join(DATA, f)):
-            texty += [(f, odst) for odst in open(os.path.join(DATA, f), encoding="utf-8").read().split("\n\n")]
+        path = os.path.join(DATA, f)
+        if os.path.exists(path):
+            texty += [(f, odst) for odst in open(path, encoding="utf-8").read().split("\n\n")]
+    story_dir = os.path.join(DATA, "pribehy")
+    if os.path.isdir(story_dir):
+        for name in sorted(os.listdir(story_dir)):
+            if name.endswith(".md"):
+                path = os.path.join(story_dir, name)
+                texty += [(f"pribehy/{name}", odst)
+                          for odst in open(path, encoding="utf-8").read().split("\n\n")]
     for kde, text in texty:
         if not recent(text):
             continue
@@ -159,7 +190,10 @@ def main():
                         f"zeptej se uživatele, jestli to tam smí být (reference/soukromi.md); když ano, "
                         f"přidej úryvek textu s tím slovem do web.json „citlive_schvaleno“")
 
-    if not os.path.exists(os.path.join(DATA, "pribeh.md")) and LINES:
+    has_story = os.path.exists(os.path.join(DATA, "pribeh.md"))
+    if os.path.isdir(story_dir):
+        has_story = has_story or any(name.endswith(".md") for name in os.listdir(story_dir))
+    if not has_story and LINES:
         hlavni = min(LINES)
         n = max((k.bit_length() for k in P if k >= 8 and k >> (k.bit_length() - 4) == hlavni), default=0)
         if n >= 6:

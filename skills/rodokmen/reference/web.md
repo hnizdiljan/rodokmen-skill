@@ -1,6 +1,8 @@
 # Rodinný web – stavba, nastavení, zveřejnění
 
 Web je statický (Astro + vyhledávání Pagefind), data bere z `data/` přes `tools/export_web.py`.
+Šablona používá Astro 7.3.8; podle `package-lock.json` vyžaduje Astro Node.js `>=22.12.0` a tranzitivní `undici`
+8.11.2 `>=22.19.0`. Používej proto Node.js `>=22.19.0` při čisté instalaci i sestavení webu.
 Stránky: úvod (lákadlo, statistiky, zajímavosti, mapa, rody, vějíř), příběh, zajímavosti, rody, stránka rodu,
 mapa (OpenStreetMap), vějíř přes celou obrazovku s hledáním, seznam předků, zápisy (s výřezem, rámečkem, přepisem
 a překladem), stránka osoby, rodiny, „Co hledáme“, výzkumný deník, hledání.
@@ -8,7 +10,7 @@ a překladem), stránka osoby, rodiny, „Co hledáme“, výzkumný deník, hle
 ## Příkazy (ve složce `web/`)
 | příkaz | co dělá |
 |---|---|
-| `npm install` | jednou na začátku (stáhne knihovny, ~1 minuta) |
+| `npm ci` | čistá instalace přesně podle `package-lock.json` |
 | `npm run data` | převede data do webu (vždy po změně dat; funkční Python 3 vyhledá `scripts/data.mjs`) |
 | `npm run build` | sestaví web do `dist/` |
 | `npm run nahled` | data + build + náhled na http://localhost:4321 (Ctrl+C ukončí) |
@@ -35,6 +37,7 @@ Pozor: takový web nemá přihlášení – je vidět z celé domácí sítě. V
  "prihlaseni": {"uvod": "Tenhle web je jen pro rodinu.", "otazka": "Jak se jmenoval pes u babičky v Holicích?", "odpoved": "Alík"},
  "uvod": {"nadpis": "Lákavý nadpis", "odstavce": ["2–3 věty, které chytí"], "foto": "klic_obrazku_ve_vyrezech", "foto_popis": "…"},
  "pribeh": {"menu": "Příběh Nováků", "rod": 8, "tlacitko": "Přečíst příběh Nováků"},
+ "pribehy": [],
  "zajimavosti_na_uvodu": [{"nadpis": "Nejstarší předek", "text": "Kovář Jan, asi 1825."}]
 }
 ```
@@ -48,9 +51,24 @@ Pozor: takový web nemá přihlášení – je vidět z celé domácí sítě. V
 - `uvod.foto` = klíč obrázku ve `vyrezy/` (ulož přes `vyrez.py`).
 - `pribeh`: `menu` a `tlacitko` pojmenuj podle hlavního rodu („Příběh Novákových“), `rod` = číslo rodu (8–15).
   Bez vyplněného `uvod` ukáže úvodní stránka aspoň název a `lead` příběhu. Viz `pribehy.md`.
+- `pribehy`: volitelný seznam slugů souborů z `data/pribehy/`, který určuje pořadí příběhů v rozcestníku.
+  Prázdný seznam použije všechny soubory v abecedním pořadí; vyplněný seznam musí každý slug obsahovat právě jednou.
+  Frontmatter (`title`, `lead`, číselné `rod`) a stránka každého příběhu jsou popsány v `reference/pribehy.md`.
 - Šablona `web.json` je prázdná – název nastav hned, jak znáš příjmení výchozí osoby (`kontrola.py` hlásí zbytky ukázky).
+- `puvodni_jmena`: `true` = jména osob na webu a ve vějíři v původních tvarech ze zápisů (pole `zap` v `osoby.py`,
+  „Catharina Nowakin / Kateřina Nováková“). Výchozí je dnešní spisovná podoba; původní tvar je pak jen řádkem na stránce osoby.
 - `citlive_schvaleno`: seznam úryvků textu, které uživatel na webu schválil (např. `["oběsil se ve stodole"]`) –
   `kontrola.py` je pak nehlásí jako `CITLIVÉ`. Úryvek musí obsahovat hlášené slovo; když se text změní, hlásí se znovu.
+
+## Stránky Statistiky a Domy
+- **Statistiky** (`/statistiky/`, `tools/statistiky.py`): povolání, věk dožití a při sňatku, měsíce svateb, generační
+  odstup, místa narození, křestní jména, víra, zápisy podle druhu a archivu. Počítá se jen z faktů přímých předků –
+  čím jednotnější zápis faktů (`* 12. 3. 1873 Obec čp. 5`, `× …`, `† …`, řemeslo samostatně), tím lepší čísla.
+- **Domy** (`/domy/`, `tools/domy_export.py`): mapa domů předků z výstupu skillu stare-adresy (viz `data.md` → `domy/`).
+  Podklad ČÚZK (mapa / letecký snímek), domy shluknuté podle obcí, barva podle rodu, v okénku lidé, kteří v domě
+  žili (přímí předci první, boční příbuzní s odkazem na kartičku u předka), výřez skici a jedna věta o jistotě polohy.
+  Na stránkách osob a zápisů jsou odkazy na domy. Výřezy skic na veřejném webu jen s citací archivu (podmínky
+  v návodu stare-adresy).
 
 ## Zveřejnění na Netlify (výchozí, zdarma)
 1. Uživatel si založí účet na netlify.com (stačí přihlášení přes Google/GitHub) – udělá sám.
@@ -71,7 +89,8 @@ Pozor: takový web nemá přihlášení – je vidět z celé domácí sítě. V
    Uživatel ji vypne v administraci webu: Project configuration → Access & security → Visitor access. Web pak chrání
    rodinná otázka – proto znovu ověř v anonymním okně, že se ukáže.
    Přihlášení zajišťuje Netlify Edge Function `web/netlify/edge-functions/brana.js` (generuje ji export).
-Další aktualizace = jen `npm run nasadit`. Vlastní doménu lze nastavit v administraci Netlify.
+Další aktualizace = jen `npm run nasadit`. Tarif zdarma má měsíční kredity a každé nasazení je spotřebovává –
+nenasazuj po každé drobné změně, ale až na požádání uživatele (třeba po skončení kola hledání). Vlastní doménu lze nastavit v administraci Netlify.
 
 **Pozor:** „Netlify Drop“ (přetažení složky v prohlížeči) neumí Edge Functions → web by byl bez přihlášení. Nepoužívat.
 
@@ -93,6 +112,15 @@ Styly `web/src/styles/global.css` (barvy v `:root`), rozložení `web/src/layout
 Barvy rodů jsou v `tools/export_web.py` (`LINE_COLORS`) a `tools/fan_chart.py` (`BASE`). Upravuj jen na přání uživatele
 a po úpravě zkontroluj web na mobilu i počítači.
 
+## Vějíř na webu – plynulý posun a přibližování
+Stránka `/vejir/` je jedno SVG; u velkého vějíře (stovky jmen) by se při posunu a přibližování sekalo. Proto má
+hardwarovou akceleraci jako mapové aplikace (`web/src/lib/fanview.ts`, výpočty a testy v `fanmath.ts`): během pohybu
+grafická karta posouvá připravený obraz, po zastavení se dokreslí ostrý výřez v rozlišení obrazovky.
+- Výchozí `auto`: zapne se jen u velkých vějířů (od `AUTO_MIN_TEXTS` textů), malý vějíř (5–7 generací) jede bez ní.
+- Vynutit: `data/web.json` → `"vejir": { "akcelerace": true }` nebo `false`, pak `npm run data && npm run build`.
+- Vyzkoušet bez přestavění webu: adresa `/vejir/?akcelerace=1`, `=0` nebo `=auto`.
+- Testy výpočtů: ve `web/` `npm test`.
+
 ## Vějíř jako plakát
 `python3 -I tools/fan_chart.py vystupy/` → SVG a HTML (a PNG, je-li nainstalovaný Google Chrome, na Windows i Microsoft Edge) k tisku.
 
@@ -102,4 +130,5 @@ a soubory ve `web/`, které se liší od nové šablony, taky – staré verze u
 Pokyny projektu z `CLAUDE.md` přesune do `AGENTS.md` (obsah zůstane) a do `CLAUDE.md` dá jen odkaz `@AGENTS.md`, aby Claude Code,
 Codex, Cursor i OMP četly tentýž text; původní `CLAUDE.md` uloží do `pracovni/zaloha_pokyny_<datum>/`.
 Upravoval-li jsi s uživatelem vzhled (styly, stránky), převezmi úpravy ze zálohy (porovnej soubory) a ověř web. Pak ve `web/`
-`npm install` a `npm run data`. Starou šablonu přihlášení `export_web.py` odmítne s výzvou k aktualizaci.
+se stejnou verzí Node.js `>=22.19.0` pro instalaci i build spusť `npm ci`, `npm run data` a `npm run build`.
+`package-lock.json` zachovej; `npm ci` z něj provede čistou instalaci. Starou šablonu přihlášení `export_web.py` odmítne s výzvou k aktualizaci.
