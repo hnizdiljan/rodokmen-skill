@@ -49,6 +49,7 @@ Pozor: takový web nemá přihlášení – je vidět z celé domácí sítě. V
   skončí chybou; otevřený web jen výslovně přes `"otevreny": true` v `prihlaseni`.
   Je to lehká ochrana proti náhodným návštěvníkům, ne bankovní zabezpečení – citlivé věci na web nepatří.
 - `uvod.foto` = klíč obrázku ve `vyrezy/` (ulož přes `vyrez.py`).
+- `zajimavosti_na_uvodu` musí být seznam objektů `{"nadpis": …, "text": …}` – samé řetězce dají prázdné kartičky.
 - `pribeh`: `menu` a `tlacitko` pojmenuj podle hlavního rodu („Příběh Novákových“), `rod` = číslo rodu (8–15).
   Bez vyplněného `uvod` ukáže úvodní stránka aspoň název a `lead` příběhu. Viz `pribehy.md`.
 - `pribehy`: volitelný seznam slugů souborů z `data/pribehy/`, který určuje pořadí příběhů v rozcestníku.
@@ -91,6 +92,9 @@ Pozor: takový web nemá přihlášení – je vidět z celé domácí sítě. V
    Přihlášení zajišťuje Netlify Edge Function `web/netlify/edge-functions/brana.js` (generuje ji export).
 Další aktualizace = jen `npm run nasadit`. Tarif zdarma má měsíční kredity a každé nasazení je spotřebovává –
 nenasazuj po každé drobné změně, ale až na požádání uživatele (třeba po skončení kola hledání). Vlastní doménu lze nastavit v administraci Netlify.
+Podle zkušenosti z 10/2026: 300 kreditů měsíčně, produkční nasazení ~15 kreditů; nasazování po každém zápisu spotřebovalo
+za den polovinu a po vyčerpání se web pozastaví. Řekni to uživateli hned při zveřejnění; mezi nasazeními obnovuj jen
+místní náhled.
 
 **Pozor:** „Netlify Drop“ (přetažení složky v prohlížeči) neumí Edge Functions → web by byl bez přihlášení. Nepoužívat.
 
@@ -100,12 +104,42 @@ předtím musí vyexportovat (`cd web && npm run data`). Když náhled nenaběhn
 zkus v `launch.json` `"runtimeExecutable": "node"` a `"runtimeArgs": ["web/node_modules/astro/bin/astro.mjs", "dev", "--root", "web"]`
 (Astro 7 má spouštěč `astro.mjs`, ne `astro.js`). Server běží jen na tomto počítači – nepřidávej `--host`.
 
+macOS s Homebrew: aplikace nemusí vidět `node` („env: node: No such file“) a přidělí jiný port, než na kterém Astro běží.
+Pomohlo `"runtimeExecutable": "/bin/sh"`, `"runtimeArgs": ["-c", "export PATH=/opt/homebrew/bin:$PATH; cd web && npm run preview"]`
+a `"autoPort": false`.
+`astro preview` spuštěný na pozadí vypíše „Preview server running …“ a skončí s kódem 0, server ale běží dál – ověř ho
+otevřením adresy, ne podle návratového kódu.
+
 V Cursoru `.claude/launch.json` náhled nespouští. Ve složce `web` spusť `npm run nahled` a pošli odkaz http://localhost:4321.
 I tady server běží jen na tomto počítači – nepřidávej `--host`.
 
 ## Vlastní server (pokročilé)
-- Docker: `web/Dockerfile` (build Astro → nginx s `nginx.conf` z `nginx.sablona.conf`). Před buildem image vždy `npm run data`.
+- Docker: `web/Dockerfile` (build Astro → nginx s `nginx.conf` z `nginx.sablona.conf`). Před buildem image vždy `npm run data`
+  (s přihlášením `npm run data -- --nasazeni`). Node.js na počítači není nutný: data připraví i
+  `python3 -I tools/export_web.py --nasazeni` (z kořene projektu) a web se sestaví uvnitř Dockeru.
 - CapRover: `npm run deploy-caprover` (vyžaduje nainstalovaný a přihlášený `caprover` CLI).
+- Zpevnění nginx (na přání uživatele, do `nginx.sablona.conf`): `server_tokens off`, hlavičky `X-Content-Type-Options`,
+  `X-Frame-Options`, CSP `frame-ancestors`, `location ~ /\. { return 404; }`. Pozor: `add_header` uvnitř `location` ruší
+  hlavičky ze `server` – opakuj je. **Referrer-Policy: no-referrer rozbije mapu** (dlaždice OpenStreetMap bez Refereru
+  vracejí 403 „Access blocked“) – použij `strict-origin-when-cross-origin`. V `docker-compose.yml` jde kontejner
+  `nginx:alpine` pustit jen pro čtení (`read_only`, `cap_drop: ALL` + CHOWN/SETUID/SETGID/NET_BIND_SERVICE, tmpfs pro
+  `/var/cache/nginx`, `/var/run`, `/tmp`, healthcheck na `/prihlaseni.html`).
+- Brána nemá ochranu proti zkoušení odpovědí (otisk je statický) – na vlastním serveru o to víc trvej na dlouhé,
+  neuhodnutelné odpovědi.
+- Přihlášení používá `crypto.subtle`, které prohlížeč dává jen přes https nebo na localhostu – web otevřený přes http
+  z jiného počítače v síti se nepřihlásí. Pro vnitřní síť použij https nebo otevřený web bez přihlášení (viz výše).
+
+## Cloudflare (alternativa k Netlify – bez hotové šablony)
+Netlify Edge Function se na Cloudflare nepřenese; bránu by bylo třeba napsat znovu. Zkušenosti jednoho projektu (10/2026):
+- Cloudflare při „Import a repository“ zakládá **Worker, ne Pages** – `functions/_middleware.js` (Pages Functions) neběží.
+  Funguje `worker.js` (`export default { fetch }`, soubory přes `env.ASSETS.fetch`) a `wrangler.jsonc` s
+  `assets: {directory: "./public", binding: "ASSETS", run_worker_first: true, not_found_handling: "404-page"}`;
+  `name` musí odpovídat názvu projektu v Cloudflare.
+- **Bez `run_worker_first: true` se statické soubory vydávají mimo bránu – web je otevřený.** Ověř v anonymním okně.
+- Do samostatného **soukromého** repozitáře patří jen sestavený web a worker – data projektu ani GEDCOM ne. Aplikace
+  Cloudflare na GitHubu vidí jen vybrané repozitáře (nový přidá uživatel v Settings → Installations).
+- Safari s blokátorem obsahu ukáže prázdnou stránku 403, když Cloudflare pošle ověřovací stránku (pozná se podle
+  `Expires: 1970`) – to není chyba brány.
 
 ## Úpravy vzhledu
 Styly `web/src/styles/global.css` (barvy v `:root`), rozložení `web/src/layouts/Base.astro`, stránky `web/src/pages/`.

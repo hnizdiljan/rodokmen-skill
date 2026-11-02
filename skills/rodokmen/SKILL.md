@@ -100,7 +100,8 @@ Cíl: znát co nejvíc o 3–4 generacích nazpět, než sáhneš do matrik.
   pracovní převody do `pracovni/`; na web patří jen samostatně schválené výřezy. Přečti dokumenty celé (PDF/fotky) a vytěž.
   Soubor `.doc` nejdřív zkontroluj lokálně: pokud začíná RTF hlavičkou `{\rtf`, otevři nebo převeď ho ve Wordu či
   LibreOffice. Nepoužívej online převodníky a originál ani pracovní převod neposílej na web.
-- Doporuč zeptat se nejstarších žijících příbuzných – teď, dokud to jde. Nabídni seznam otázek.
+- Doporuč zeptat se nejstarších žijících příbuzných – teď, dokud to jde. Nabídni seznam otázek. Pro příbuzné mimo chat
+  se osvědčila tabulka k vyplnění (`.xlsx`/`.csv`, řádek = osoba); ptej se v ní i na fotky náhrobků a doklady vystěhovalců.
 - **Příbuzenství ber doslova, jak ho rodina řekla** („pradědeček babičky“ ≠ „otec babičky“) – nikdy ho neopravuj podle
   toho, co se ti hodí do dat. Při nejasnosti se zeptej. Ztotožnění jen podle křestního jména veď jako `prob` s poznámkou.
 - Vše zapiš: `data/udaje_od_rodiny.md` (kdo co řekl), osoby do `data/osoby.py` se stavem `fam`
@@ -114,6 +115,8 @@ Cíl: znát co nejvíc o 3–4 generacích nazpět, než sáhneš do matrik.
   Nedoloženou samostatnou rodinu automaticky nepřipojuj do `P` ani `LINES`. Jako `SIDE` ji veď jen jako
   výslovně označenou stopu u konkrétního možného příbuzného; jinak ji ponech odděleně v deníku.
   Poznámky ve stromu bývají plné rodinných historek. Přečti je a vytěž do `udaje_od_rodiny.md`.
+  GEDCOM z MyHeritage: citace (`SOUR`) bývají skoro jen cizí stromy („… Web Site“) → takové údaje `mh`; místa jsou
+  anglicky s okresem a krajem („Obec, Olomouc District, …“) – do `osoby.py` zkrať na obec.
   Starší strom z **Brother's Keeper** (kódování ANSI a česká data „SRPEN 1945“ nástroj převede sám): místa tam bývají
   v 6. pádě („Táboře“) – do `osoby.py` je přepiš do 1. pádu. Kořenem takového stromu často nejsou uživatel, ale jeho děti
   (oba rody) – výchozí osobu proto vyber jménem.
@@ -174,6 +177,8 @@ Pravidla, která chrání kvalitu (naučená na skutečném projektu):
   (objekt napiš do `pracovni/x.json`, nástroj změní jen tu položku), `osoby.py` a markdown nástrojem pro úpravu souborů.
   Nikdy `sed -i` ani skript, který soubor přepíše celý – rozbije formát a v historii je pak změněný celý soubor.
 - **`doc` jen to, co jsi četl přímo na snímku.** Shoda jména a doby bez přímého dokladu = `prob` + poznámka proč.
+  Rozlišuj „zápis doložen“ a „vazba na rodinu doložena“: rejstřík, index sčítání nebo cizí strom dají jen kandidáta.
+  Sporná slova nech nezávisle přečíst podruhé. Postup a důkazní standard (GPS): `reference/matriky.md` → Ověřování.
 - **Nic nedomýšlej.** Nejisté čtení „(?)“, rozpory zapiš do `ISSUES`. Písaři se pletli (jména sourozenců, věk, Anna/Františka).
 - Při změně Kekulého čísel zkontroluj a aktualizuj i odkazy na čísla osob: `SIDE.k`, klíče `LINES`,
   číselné odkazy v `web.json` a odkazy na osoby v příbězích. Zkontroluj také `SAME` a další textové odkazy.
@@ -182,6 +187,8 @@ Pravidla, která chrání kvalitu (naučená na skutečném projektu):
 - **Ztotožnění míst ověř** podle panství/kraje v zápisu (německé „Langenau“ je v Čechách několikrát – rozhodne „bey Hohenelbe“ = u Vrchlabí).
 - **U úředníků, vojáků, lékařů, učitelů, farářů** zkus noviny a ročenky (`reference/portaly.md` → Noviny): ukážou
   kariéru, tedy kde člověk kdy žil, a dají výstřižky na web. U sedláků a řemeslníků na vsi se nevyplatí.
+- **Muži narození ~1865–1900** prošli 1. světovou válkou: prověř seznamy ztrát (Verlustlisten) a databáze VÚA (legionáři,
+  padlí); při úmrtí 1914–1918 mimo domov nebo „nezvěstný“ hned (`reference/portaly.md` → Vojáci a války).
 - Matriky před ~1650 skoro nejsou. Pro 17. století: soupis poddaných 1651, berní rula 1654, gruntovní knihy (`reference/portaly.md`).
 - **Když matrika nestačí** (původ přistěhovalce či vojáka, chybějící rodiče): písemnosti vrchnosti – soupisy poddaných,
   svatební smlouvy, sirotčí a pozůstalostní spisy (fond „Velkostatek <panství>“); u mlynářů karta mlýna na vodnimlyny.cz;
@@ -225,8 +232,12 @@ Pomocníci stojí hodně kreditů – před velkým kolem řekni uživateli, co 
 Do zadání jim napiš technické pasti z `reference/matriky.md` (macOS: zsh; Windows: `python -I -X utf8`, `magick`)
 a pravidla brzdy výše (síť jen přes `tools/slusne.py`, při hlášce „zastavený“ skončit a ohlásit).
 **V zadání chtěj u každého prošlého snímku, co na něm skutečně přečetl** (rok, první jméno), ne jen „prošel jsem
-sn. 20–40“ – pomocník jinak přehlédne, že se mu část snímků nenačetla. Na špatně čitelné knihy (kurent 1. poloviny
+sn. 20–40“ – pomocník jinak přehlédne, že se mu část snímků nenačetla, a „nálezy“ ze snímku, který se nezobrazil,
+si i domyslí. Dej mu **kontrolní známý zápis** ve stejné knize: když ho nenajde, jeho „nenalezeno“ neplatí.
+Šablona zadání a jak výsledek přebírat: `reference/pomocnici.md`. Na špatně čitelné knihy (kurent 1. poloviny
 19. století, vybledlé snímky) pomocníky nepouštěj, nebo jim dej přesný snímek; ARON a Porta fontium zvládají dobře.
+Dvě sezení, která zapisují do `data/` (deník, `osoby.py`), ve stejném projektu najednou nepouštěj – čísla řádků deníku
+se kříží a změny nejdou oddělit; druhé sezení ať píše jen do `pracovni/` jako pomocník.
 
 ### Kdy přestat
 Linie končí, když matriky mlčí (nemanželské dítě bez otce, shořelé knihy, chybějící svazky) nebo když jsi
@@ -263,8 +274,9 @@ Podrobně `reference/web.md`. Ve zkratce:
 
 ## Fáze 5 – Zveřejnění (volitelné, jen se souhlasem)
 Výchozí cesta je **Netlify** (zdarma): `npm run nasadit`. Přihlášení k Netlify a první propojení webu jsou interaktivní –
-dej je uživateli jako `! npx netlify-cli login` (v Claude Code; jinde jako blok ke zkopírování, bez `!`) atd. (postup v `reference/web.md`). Pokročilá varianta: vlastní server (Docker/CapRover).
-Nic nezveřejňuj bez výslovného souhlasu uživatele.
+dej je uživateli jako `! npx netlify-cli login` (v Claude Code; jinde jako blok ke zkopírování, bez `!`) atd. (postup v `reference/web.md`). Pokročilá varianta: vlastní server (Docker/CapRover), Cloudflare.
+Nic nezveřejňuj bez výslovného souhlasu uživatele. Každé nasazení na Netlify stojí kredity z měsíčního limitu zdarma –
+nasazuj jen na pokyn nebo na konci kola a řekni to uživateli při zveřejnění.
 
 ## Poznámky pro správce skillu
 Skill se zlepšuje podle zkušeností lidí, kteří ho používají. Proto **průběžně zapisuj do `poznamky_pro_skill.md`**

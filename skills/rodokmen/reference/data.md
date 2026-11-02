@@ -61,7 +61,10 @@ P = {
   "odkaz": "https://aron.vychodoceskearchivy.cz/apu/…/dao/…/file/…"}]
 ```
 - `klic`: malá písmena bez diakritiky, `obec_druh_kdo_rok` (druh: krest, snatek, umrti, index, scitani…). Je to i název obrázku.
-- `druh`: N, O, Z, I (index/rejstřík), S (sčítání), J (jiný pramen).
+- `druh`: N, O, Z, I (index/rejstřík), S (sčítání), J (jiný pramen – noviny, vojenské databáze, gruntovní knihy, ale i
+  doklady z rodiny: výpis z matriky, úmrtní list, dopis, odpověď archivu). U rodinného dokladu `snimek` a `odkaz` vynech
+  a ve `svazky.json` ho veď jako „rodinný archiv“ bez `url`; výřez udělej ze skenu dokladu. Upozornění `kontrola.py`
+  „chybí odkaz na snímek“ je u takového zápisu v pořádku.
 - `datum` jako v češtině („14. 2. 1890“, „3/1867“, „1797“) – web podle něj řadí.
 - `shrnuti` je stručný obsahový souhrn, ne doslovný přepis. Při předání výzkumu bez originálního snímku nepřepisuj
   souhrn jako `orig` v `prepisy.json` a nevyráběj výřez ani rámeček; chybějící podklady výslovně poznamenej.
