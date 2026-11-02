@@ -218,6 +218,9 @@ Podrobně `reference/pribehy.md`. Tohle je to, co rodina na webu čte nejradši,
 - **Zajímavosti** („fun facts“) sbírej **průběžně**: co najdeš při čtení, hned zapiš do `data/zajimavosti.md`
   a řekni uživateli. Po každém kole spusť `python3 -I tools/napady.py`. Najde v datech svatby krátce před porodem,
   rod v jednom domě, sňatky příbuzných, dlouhověkost, epidemie… Ověř a napiš jako krátké příběhy.
+- **Osobnosti:** po kole spusť i `python3 -I tools/osobnosti.py` – vybere předky s výjimečným povoláním nebo postavením
+  (vzdělanci, duchovní, umělci, funkcionáři, vojáci, sportovci, podnikatelé) a ke každé skupině poradí, kde hledat víc.
+  Potvrzené označ v `osoby.py` polem `vyz="krátký popis"`; web je ukáže nahoře na stránce „Osobnosti“.
 - **„Příběh <hlavního rodu>“** (Příběh Novákových): jakmile má hlavní rod ~5 doložených generací, nabídni ho.
   Koncept napiš **do chatu** ke schválení, pak `data/pribeh.md` a v `web.json` menu, tlačítko a úvod.
   Je hlavní věcí na úvodní stránce webu.
