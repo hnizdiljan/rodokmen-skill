@@ -114,7 +114,11 @@ Mladší knihy jsou na matričním úřadě obce s rozšířenou působností / 
 - Nemanželské dítě nese příjmení matky; otec chybí nebo je dopsán později (legitimace na okraji).
 - Stejný předek dvakrát v rodokmenu (vzdálení příbuzní se vzali) – v datech `SAME`.
 - Index nenašel ≠ zápis neexistuje. Zapiš, co přesně jsi prošel.
+- Farnost má pro každou obec **vlastní knihu**, ale čísla zápisů v roce jsou společná pro celou farnost – v knize
+  jedné obce proto čísla „chybí“. Nejsou to chybějící strany; zbytek je v knihách ostatních obcí.
 - Pomocníci (subagenti) a OCR/AI čtou historické písmo chybně – vždy ověř sám (viz `playbook.md` §1 bod 10).
+  U německých tištěných formulářů (Vídeň a další města, 2. polovina 19. století) bývají chybně hlavně **roky, stav
+  (ledig × Witwer), povolání, adresy a jména svědků** – ty ověř na výřezu vždy, i když pomocník hlásí „jisté“.
 - Velké kolo s pomocníky (zkušenost s 10 souběžnými): společná pravidla dej do jednoho souboru (`pracovni/ZADANI_POMOCNIK.md`)
   a v zadání na něj jen odkaž. Do pravidel patří: obrázek pro čtení zmenšit na max. 2000 px (jinak se nástroji
   nezobrazí a pomocník „čte“ naslepo), **nikdy nepsat přepis zápisu, který neviděl**, ukládat výsledek průběžně po každém
