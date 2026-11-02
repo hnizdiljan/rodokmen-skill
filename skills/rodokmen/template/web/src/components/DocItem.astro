@@ -1,0 +1,28 @@
+---
+// Jeden rodinný dokument: fotka (výřez v /img), zvuková nahrávka nebo PDF (soubor v /media).
+import { people } from '../lib/data.js';
+const { d, showPeople = false } = Astro.props;
+const who = showPeople ? (d.people || []).map((s) => people[s]).filter(Boolean) : [];
+---
+<figure class={`doc doc-${d.kind || 'foto'}`}>
+  {d.kind === 'audio' ? (
+    <div class="doc-icon" aria-hidden="true">🎙</div>
+    <audio controls preload="none" src={d.file}></audio>
+  ) : d.kind === 'pdf' ? (
+    <a class="doc-icon" href={d.file} target="_blank" rel="noopener" aria-label="Otevřít PDF">📄</a>
+  ) : (
+    <a href={`/img/${d.img}.jpg`} target="_blank" rel="noopener"><img src={`/img/${d.img}.jpg`} alt={d.caption} loading="lazy" /></a>
+  )}
+  <figcaption>
+    {d.caption}
+    {d.kind === 'pdf' && <> <a href={d.file} target="_blank" rel="noopener">Otevřít PDF</a></>}
+    {d.transcript && <> <a href={d.transcript} target="_blank" rel="noopener">Přepis (automatický)</a></>}
+    {who.length > 0 && <span class="doc-people"> U předka: {who.map((p, i) => <>{i > 0 && ', '}<a href={`/osoba/${p.slug}/`}>{p.name}</a></>)}</span>}
+  </figcaption>
+</figure>
+
+<style>
+  .doc-icon { display: flex; align-items: center; justify-content: center; font-size: 2.6rem; min-height: 5rem; text-decoration: none; }
+  audio { width: 100%; }
+  .doc-people { display: block; margin-top: 0.3rem; }
+</style>

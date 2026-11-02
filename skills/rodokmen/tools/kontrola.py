@@ -163,6 +163,27 @@ def main():
             if n not in log_cisla:
                 err.append(f"{kde}: řádek deníku {n} v data/research_log.md není")
 
+    # vedlejší linie (data/vetve.json, tools/vetve_import.py): odkazy na rodiče a manžele, předci stále tíž
+    vetve = jload("vetve.json", {})
+    ids = {v.get("id") for v in vetve.get("osoby", [])}
+    for v in vetve.get("osoby", []):
+        for r in v.get("rodice", []) + v.get("manzele", []):
+            if r.startswith("k"):
+                if int(r[1:]) not in P:
+                    err.append(f"vetve.json {v.get('id')} ({v.get('n')}): předek {r} v osoby.py není")
+            elif r not in ids:
+                err.append(f"vetve.json {v.get('id')} ({v.get('n')}): odkaz na neexistující osobu {r}")
+        if v.get("st", "fam") not in ("doc", "prob", "fam", "mh", "unk"):
+            err.append(f"vetve.json {v.get('id')}: neznámý stav '{v.get('st')}'")
+        for r in v.get("r", []):
+            if r not in keys:
+                err.append(f"vetve.json {v.get('id')} cituje neexistující zápis '{r}'")
+    for r, jmeno in vetve.get("predci", {}).items():
+        k = int(r[1:])
+        if k in P and P[k].get("n") != jmeno:
+            warn.append(f"vetve.json: předek {k} byl při importu „{jmeno}“, teď je v osoby.py „{P[k].get('n')}“ – "
+                        f"zkontroluj, že jeho sourozenci ve větvích pořád patří k němu (a oprav jméno v „predci“)")
+
     cited = ({r for p in list(P.values()) + list(R.values()) for r in p.get("r", [])} | {r for s in SIDE for r in s.get("r", [])}
              | {r for h in ns.get("HYPOTEZY", []) if isinstance(h, dict) for r in h.get("zaznamy", [])})
     for z in zaz:
@@ -244,7 +265,7 @@ def main():
         texty.append((f"osoba {k}", text + (f" {hranice}" if roky and min(roky) >= 1870 or k < 8 else "")))
     texty += [(f"boční příbuzný {s.get('n')}", s.get("n", "") + " " + s.get("t", "")) for s in SIDE]
     texty += [(f"RODINA {oid}", " ".join(o.get("f", [])) + " " + o.get("note", "") + " " + o.get("y", "")) for oid, o in R.items()]
-    for f in ("zajimavosti.md", "pribeh.md"):
+    for f in ("zajimavosti.md", "pribeh.md", "novinky.md"):
         path = os.path.join(DATA, f)
         if os.path.exists(path):
             texty += [(f, odst) for odst in open(path, encoding="utf-8").read().split("\n\n")]
@@ -256,6 +277,8 @@ def main():
                 texty += [(f"pribehy/{name}", odst)
                           for odst in open(path, encoding="utf-8").read().split("\n\n")]
     rodne_cislo = re.compile(r"\b\d{2}[0156]\d[0-3]\d\s?/\s?\d{3,4}\b")   # 850312/1234 – vždy, nezávisle na roce
+    if cfg.get("bez_cenzury"):   # rodina výslovně chce na webu všechno (reference/soukromi.md) – citlivé zmínky nehlásit
+        texty = []
     for kde, text in texty:
         m = next((m for m in rodne_cislo.finditer(text) if not schvalene(text, m)), None)
         if not m and not recent(text):

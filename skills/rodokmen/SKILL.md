@@ -337,6 +337,7 @@ Nedělej to pořád. Postup:
 | `matricula_dl.sh`, `matricula_batch.sh` | snímky z Matriculy (Rakousko…), URL se bere z prohlížeče |
 | `anno.py`, `anno_snap.py`, `kramerius.py` | noviny: ANNO (rakouské), Kramerius (české; `kramerius.py text <PID>` = celý text veřejné stránky) |
 | `ged_import.py strom.ged "Jméno"` | předci z rodinného stromu (GEDCOM) + fronta zápisů; `"Otec" "Matka" --deti` pro děti dvou rodičů |
+| `vetve_import.py [--zapsat]` | sourozenci předků a jejich potomci z GEDCOM do `data/vetve.json` → větve na webu a stránka DNA shody |
 | `ftb_export.py strom.ftb out.ged ["Jméno" rok linie.md [Photos/]]` | záloha z MyHeritage (.ftb) → GEDCOM + přímá linie s původem údajů |
 | `overit.py <snímek> x0,y0,x1,y1 <prefix> [--vylepsit]` | zápis na dvě čitelné poloviny – ověření čtení (souřadnice = zlomky 0–1); `--vylepsit` u vybledlých |
 | `napady.py` | náměty na zajímavosti z dat |

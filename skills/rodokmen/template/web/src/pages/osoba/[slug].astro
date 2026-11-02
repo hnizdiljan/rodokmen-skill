@@ -4,7 +4,11 @@ import PersonLink from '../../components/PersonLink.astro';
 import Record from '../../components/Record.astro';
 import Pedigree from '../../components/Pedigree.astro';
 import MobileTree from '../../components/MobileTree.astro';
-import { people, families, lineByK, records, dateKey, href, statusClass } from '../../lib/data.js';
+import BranchNode from '../../components/BranchNode.astro';
+import BranchOpen from '../../components/BranchOpen.astro';
+import IssueCard from '../../components/IssueCard.astro';
+import DocItem from '../../components/DocItem.astro';
+import { people, families, lineByK, records, dateKey, href, statusClass, issues } from '../../lib/data.js';
 import domyData from '../../data/domy.json';
 
 export function getStaticPaths() {
@@ -14,6 +18,7 @@ const p = people[Astro.params.slug];
 const line = p.line ? lineByK[p.line] : null;
 const recs = [...new Set(p.records)].filter((r) => records[r]).sort((a, b) => dateKey(records[a].date) - dateKey(records[b].date));
 const path = [...p.path].reverse().filter(Boolean);
+const open = issues.filter((i) => i.people.includes(p.slug) && !i.text.startsWith('Vyřešeno'));
 const domById = Object.fromEntries(domyData.domy.map((d) => [d.id, d]));
 const myDomy = (domyData.osoby[p.slug] || []).map((id) => domById[id]).filter(Boolean);
 // „Manželka/Manžel“ jen u doloženého sňatku (export_web.py: married), jinak neutrálně „Partnerka/Partner“
@@ -23,6 +28,9 @@ const married = !!(p.ownFamily && families[p.ownFamily]?.married);
   <div class="crumbs">
     {path.map((s, i) => <>{i > 0 && <span>→</span>}{s === p.slug ? <span>{people[s].name}</span> : <a href={href.person(s)}>{people[s].name.split(' ')[0]} {people[s].years}</a>}</>)}
   </div>
+  <div class={`person-head ${p.portrait ? 'has-photo' : ''}`}>
+  {p.portrait && <a class="portrait" href={`/img/${p.portrait}.jpg`} target="_blank" rel="noopener"><img src={`/img/${p.portrait}.jpg`} alt={`${p.name} – fotografie`} width="128" height="128" /></a>}
+  <div>
   <h1>{p.name}</h1>
   {p.zap?.length > 0 && p.zap.join(' / ') !== p.modern && <p class="small muted">{p.sex === 'F' ? 'V zápisech zapsána jako' : 'V zápisech zapsán jako'} {p.zap.map((z) => `„${z}“`).join(', ')}{p.name !== p.modern ? ` · dnešní podoba: ${p.modern}` : ''}</p>}
   <div class="chips">
@@ -30,6 +38,8 @@ const married = !!(p.ownFamily && families[p.ownFamily]?.married);
     <span class="chip">{p.rel}</span>
     {line && <a class="chip" href={href.line(line.slug)}><span class="dot" style={`background:${line.color}`}></span>rod {line.name}</a>}
     <span class={`chip ${statusClass(p.st)}`}>{p.status}</span>
+  </div>
+  </div>
   </div>
 
   {p.also.length > 0 && (
@@ -60,6 +70,22 @@ const married = !!(p.ownFamily && families[p.ownFamily]?.married);
     )}
   </div>
 
+  {p.siblings > 0 && <p class="small"><a href={href.family(p.family)}>Sourozenci a jejich potomci ({p.siblings}) →</a></p>}
+  {p.kids?.length > 0 && (
+    <>
+      <h2>Děti</h2>
+      <div class="branch">{p.kids.map((id) => <BranchNode id={id} />)}</div>
+      <BranchOpen />
+    </>
+  )}
+
+  {open.length > 0 && (
+    <>
+      <h2>Co ještě nevíme</h2>
+      <div class="grid2">{open.map((i) => <IssueCard i={i} showPeople={false} />)}</div>
+    </>
+  )}
+
   {p.side.length > 0 && (
     <>
       <h2>Příbuzní mimo přímou linii</h2>
@@ -74,14 +100,14 @@ const married = !!(p.ownFamily && families[p.ownFamily]?.married);
   )}
 
   <h2>Předci</h2>
-  <p class="small"><a href={`/strom/#f=k${p.k}`}>Stromový graf od této osoby →</a></p>
+  <p class="small"><a href={`/strom/#f=k${p.k}`}>Stromový graf od této osoby →</a>{p.hasFan && <> · <a href={p.k === 1 ? '/vejir/' : `/vejir/${p.slug}/`}>Vějíř předků →</a></>}</p>
   <div class="only-desktop"><Pedigree k={p.k} /></div>
   <div class="only-mobile"><MobileTree k={p.k} /></div>
 
   {p.docs.length > 0 && (
     <>
       <h2>Rodinné dokumenty</h2>
-      <div class="docs">{p.docs.map((d) => <figure><a href={`/img/${d.img}.jpg`} target="_blank" rel="noopener"><img src={`/img/${d.img}.jpg`} alt={d.caption} loading="lazy" /></a><figcaption>{d.caption}</figcaption></figure>)}</div>
+      <div class="docs">{p.docs.map((d) => <DocItem d={d} />)}</div>
     </>
   )}
 

@@ -1,0 +1,16 @@
+---
+// Vějíř předků od libovolné osoby (export_web.py generuje src/generated/fan/<slug>.svg pro každého, kdo má známého rodiče).
+import Base from '../../layouts/Base.astro';
+import FanStage from '../../components/FanStage.astro';
+import { people } from '../../lib/data.js';
+
+const svgs = import.meta.glob('../../generated/fan/*.svg', { query: '?raw', import: 'default', eager: true });
+
+export function getStaticPaths() {
+  return Object.values(people).filter((p) => p.hasFan && p.k > 1).map((p) => ({ params: { slug: p.slug } }));
+}
+const p = people[Astro.params.slug];
+---
+<Base title={`Vějíř předků: ${p.name}`} full>
+  <FanStage svg={svgs[`../../generated/fan/${p.slug}.svg`]} person={p} />
+</Base>

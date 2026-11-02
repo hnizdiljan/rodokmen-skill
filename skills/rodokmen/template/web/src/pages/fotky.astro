@@ -1,0 +1,39 @@
+---
+// Všechny rodinné dokumenty (data/dokumenty.json): fotky, nahrávky (typ „audio“) a PDF (typ „pdf“).
+// Texty jdou změnit ve web.json → "fotky": {"uvod": …, "pdf_nadpis": …, "pdf_popis": …}.
+import Base from '../layouts/Base.astro';
+import DocItem from '../components/DocItem.astro';
+import { docs, config } from '../lib/data.js';
+const audio = docs.filter((d) => d.kind === 'audio');
+const pdf = docs.filter((d) => d.kind === 'pdf');
+const fotky = docs.filter((d) => !d.kind || d.kind === 'foto');
+const sOsobou = fotky.filter((d) => d.people?.length);
+const bezOsoby = fotky.filter((d) => !d.people?.length);
+const c = config.fotky ?? {};
+const pocet = (n, a, b, c5) => `${n} ${n === 1 ? a : n >= 2 && n <= 4 ? b : c5}`;   // 1 fotka, 2 fotky, 5 fotek
+---
+<Base title="Fotky a dokumenty" wide>
+  <h1>Fotky a dokumenty</h1>
+  <p class="lead">{c.uvod ?? 'Rodinné fotky, nahrávky a dokumenty.'} {pocet(fotky.length, 'fotka', 'fotky', 'fotek')}{audio.length > 0 && `, ${pocet(audio.length, 'nahrávka', 'nahrávky', 'nahrávek')}`}{pdf.length > 0 && `, ${pocet(pdf.length, 'dokument PDF', 'dokumenty PDF', 'dokumentů PDF')}`}. U každé je odkaz na předka, ke kterému patří (na fotce může být i jeho sourozenec, dítě nebo další příbuzný).</p>
+
+  {audio.length > 0 && (<>
+    <h2 id="nahravky">Nahrávky</h2>
+    <div class="docs">{audio.map((d) => <DocItem d={d} showPeople />)}</div>
+  </>)}
+
+  {pdf.length > 0 && (<>
+    <h2 id="pdf">{c.pdf_nadpis ?? 'Dokumenty'}</h2>
+    {c.pdf_popis && <p class="muted">{c.pdf_popis}</p>}
+    <div class="docs">{pdf.map((d) => <DocItem d={d} showPeople />)}</div>
+  </>)}
+
+  {sOsobou.length > 0 && (<>
+    <h2 id="fotky">Fotky příbuzných</h2>
+    <div class="docs">{sOsobou.map((d) => <DocItem d={d} showPeople />)}</div>
+  </>)}
+
+  {bezOsoby.length > 0 && (<>
+    <h2 id="neoznacene">Fotky bez označených osob</h2>
+    <div class="docs">{bezOsoby.map((d) => <DocItem d={d} />)}</div>
+  </>)}
+</Base>

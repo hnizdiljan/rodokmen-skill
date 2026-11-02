@@ -1,0 +1,20 @@
+---
+import Base from '../layouts/Base.astro';
+import { Content } from '../generated/novinky.md';
+import { stats } from '../lib/data.js';
+---
+<Base title="Novinky">
+  <h1>Novinky v rodokmenu</h1>
+  <p class="lead">Co nového jsme v matrikách zjistili – po jednotlivých kolech hledání, nejnovější nahoře.</p>
+  <div class="stats">
+    <div><strong>{stats.ancestors}</strong>známých předků</div>
+    <div><strong>{stats.documented}</strong>doloženo matrikou</div>
+    <div><strong>{stats.records}</strong>matričních zápisů</div>
+  </div>
+  <div class="prose novinky"><Content /></div>
+</Base>
+
+<style>
+  .novinky :global(h3) { margin-top: 1.6rem; }
+  .novinky :global(li) { margin: 0.35rem 0; }
+</style>

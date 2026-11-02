@@ -1,0 +1,17 @@
+---
+// Odkaz s kotvou #v-<id> (např. ze stránky DNA shody): rozbalí rodovou větev až k osobě, posune na ni a zvýrazní ji.
+---
+<script>
+  const show = () => {
+    const id = decodeURIComponent(location.hash.slice(1));
+    if (!id.startsWith('v-')) return;
+    const el = document.getElementById(id);
+    if (!el) return;
+    for (let p: HTMLElement | null = el; p; p = p.parentElement) if (p.tagName === 'DETAILS') (p as HTMLDetailsElement).open = true;
+    document.querySelectorAll('.br-hit').forEach((x) => x.classList.remove('br-hit'));
+    el.classList.add('br-hit');
+    el.scrollIntoView({ block: 'center' });
+  };
+  show();
+  window.addEventListener('hashchange', show);
+</script>

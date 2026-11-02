@@ -144,8 +144,8 @@ th { font-weight: 600; color: #5a4632; background: #f6f0e6; }
 main.full { max-width: none; padding: 0; }
 .fan-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; padding: 0.5rem 1rem; border-bottom: 1px solid var(--line); background: var(--paper); }
 .fan-bar strong { font: 1.15rem var(--serif); color: #3b2e22; }
-.fan-search { display: flex; gap: 0.3rem; }
-.fan-search input { font: inherit; padding: 0.3rem 0.6rem; border: 1px solid #cfc5b6; border-radius: 6px; width: 15rem; max-width: 52vw; }
+.fan-search, .fan-root { display: flex; gap: 0.3rem; }
+.fan-search input, .fan-root input { font: inherit; padding: 0.3rem 0.6rem; border: 1px solid #cfc5b6; border-radius: 6px; width: 15rem; max-width: 52vw; }
 .fan-bar button { font: inherit; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 0.25rem 0.7rem; cursor: pointer; }
 .fan-stage { position: relative; height: calc(100vh - 110px); overflow: hidden; touch-action: none; cursor: grab; background: var(--bg); }
 .fan-stage:active { cursor: grabbing; }
@@ -241,3 +241,41 @@ main.full { max-width: none; padding: 0; }
 .card-link:hover::after { opacity: 1; transform: translateX(3px); }
 .card-link h3 { padding-right: 1.4rem; }
 .updated { color: var(--muted); font-size: 0.9rem; margin: 0.4rem 0 1.2rem; }
+
+/* Profilové fotky osob */
+.person-head.has-photo { display: flex; align-items: center; gap: 1.1rem; }
+.person-head .portrait { flex: 0 0 auto; line-height: 0; }
+.person-head .portrait img { width: 128px; height: 128px; border-radius: 50%; object-fit: cover; border: 3px solid var(--paper); box-shadow: 0 0 0 1px var(--line), 0 2px 8px rgba(59, 46, 34, 0.18); }
+@media (max-width: 560px) {
+  .person-head.has-photo { gap: 0.8rem; }
+  .person-head .portrait img { width: 84px; height: 84px; }
+}
+.pedigree .box .av, .mbox .av { float: left; width: 34px; height: 34px; border-radius: 50%; object-fit: cover; margin: 0.05rem 0.45rem 0.1rem 0; border: 1px solid var(--line); }
+.mbox .av { width: 38px; height: 38px; }
+
+/* rodová větev (vedlejší linie) */
+.branch { display: flex; flex-direction: column; gap: 0.25rem; margin: 0.4rem 0 0.8rem; }
+.br { border-left: 3px solid var(--line); padding: 0.15rem 0 0.15rem 0.6rem; }
+.br-direct { border-left-color: #efb45f; background: #fff8ea; border-radius: 0 6px 6px 0; padding: 0.35rem 0.6rem; }
+.br > summary { cursor: pointer; list-style-position: outside; margin-left: 1rem; }
+.br-name { font-weight: 600; }
+.br-yrs, .br-kids, .br-sp { margin-left: 0.45rem; font-size: 0.88rem; color: var(--muted); }
+.br-kids::before { content: "· "; }
+.br-chip { margin-left: 0.4rem; font-size: 0.72rem; padding: 0 0.45rem; }
+.br-body { padding: 0.2rem 0 0.3rem 1rem; }
+.br-body .note { margin: 0.3rem 0; }
+.br-children { display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.3rem; }
+.br-leaf { color: var(--ink); }
+.br-hit, .br-hit > summary { background: #fff1b8; border-radius: 4px; }
+/* otázky se slepými cestami */
+.checked summary { cursor: pointer; font-size: 0.88rem; color: var(--accent); }
+.checked ul { margin: 0.4rem 0 0; padding-left: 1.1rem; }
+.checked li { margin: 0.35rem 0; }
+/* DNA shody */
+.dna-search input { font: inherit; font-size: 1.1rem; width: 100%; max-width: 36rem; padding: 0.55rem 0.8rem; border: 1px solid #cfc5b6; border-radius: 8px; }
+.dna-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0.8rem; margin: 0.8rem 0 1.5rem; }
+.dna-card p { margin: 0.3rem 0; }
+.dna-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.45rem; }
+.dna-rel { font-family: var(--serif); font-size: 1.05rem; color: #3b2e22; }
+.dna-card mark { background: #fff1b8; }
+.dna-help summary { cursor: pointer; }

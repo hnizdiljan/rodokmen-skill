@@ -7,7 +7,7 @@ const r = records[id];
 {r && (
   <article class="rec">
     <div>
-      <div class="meta"><span class="kind">{r.kindName}</span>{r.date} · {r.archive && r.volume ? r.volume : r.vdesc} · snímek {r.scan}</div>
+      <div class="meta"><span class="kind">{r.kindName}</span>{r.date} · {r.archive && r.volume ? r.volume : r.vdesc}{r.scan ? <> · snímek {r.scan}</> : null}</div>
       <div class="title"><a href={href.record(r.key)}>{r.title}</a></div>
       <div class="small">{r.summary}</div>
       {showPeople && r.people.filter((s) => s !== exclude).length > 0 && (

@@ -26,6 +26,11 @@ Sloučené pull requesty a opravy podle issues (fork hnizdiljan/rodokmen-skill).
 - ARON: odkazy vedou na konkrétní snímek, ne na první stránku knihy; `aron_img.py odkazy [--opravit]` (#22, #18).
 - Podpora Codexu, OMP a Cursoru (#42, #43, #52); pokyny projektu jsou nově v `AGENTS.md`, `CLAUDE.md` na ně jen
   odkazuje. Aktualizace starého projektu je převede sama (záloha v `pracovni/`).
+- Vějíř od libovolné osoby (`/vejir/<osoba>/`, výběr „Vějíř od…“), vedlejší linie z rodinného stromu
+  (`tools/vetve_import.py` → `data/vetve.json`: rozbalovací větve sourozenců předků na stránkách rodin) a stránka
+  **DNA shody** (hledání podle příjmení nebo obce, příbuzenský vztah a očekávaný podíl sdílené DNA).
+- Web: Novinky (`data/novinky.md`), Fotky a dokumenty včetně nahrávek a PDF, Vojáci v rodu (#40), profilové fotky osob
+  (`data/portrety.json`), u otázek „Už prověřeno“ (slepé cesty z deníku) a „Co ještě nevíme“ na stránkách osob.
 - Návody k převzetí rodinného GEDCOM stromu a předání projektu (#46), portály vrchnosti, zemské desky a vodní mlýny (#62).
 
 **Opravy**

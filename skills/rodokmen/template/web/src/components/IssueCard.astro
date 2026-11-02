@@ -1,0 +1,22 @@
+---
+// Otevřená otázka (ISSUES v osoby.py) i se slepými cestami – hledáními z deníku, která nic nenašla.
+import PersonLink from './PersonLink.astro';
+const { i, showPeople = true } = Astro.props;
+const kind = i.text.split(':')[0];
+const cls = i.text.startsWith('Vyřešeno') ? 'st-doc' : i.text.startsWith('Hypotéza') ? 'st-prob' : 'st-unk';
+---
+<div class="card issue">
+  <h3>{i.title}</h3>
+  {i.text && <p class="small"><span class={`chip ${cls}`}>{kind}</span> {i.text.slice(i.text.indexOf(':') + 1)}</p>}
+  {showPeople && i.people.length > 0 && <p class="small">Týká se: {i.people.map((s, n) => <>{n > 0 && ', '}<PersonLink slug={s} /></>)}</p>}
+  {i.checked.length > 0 && (
+    <details class="checked">
+      <summary>Už prověřeno – {i.checked.length} {i.checked.length === 1 ? 'hledání' : 'hledání'} bez výsledku</summary>
+      <ul class="small">
+        {i.checked.map((r) => (
+          <li><strong>{r.source}</strong>{r.range && r.range !== '–' && <> · {r.range}</>}<br /><span class="muted">{r.date} · deník č. {r.n}</span> – {r.result}</li>
+        ))}
+      </ul>
+    </details>
+  )}
+</div>

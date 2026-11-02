@@ -10,6 +10,7 @@ public/domy/
 src/generated/
 public/img/
 public/zdroje/
+public/media/
 public/prihlaseni.html
 nginx.conf
 netlify/edge-functions/

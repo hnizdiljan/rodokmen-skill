@@ -117,6 +117,30 @@ Na stránce osoby se dokument ukáže u každé osoby z `osoby`. Na stránce př
 příběhů, `"slug"` nebo `["slug", …]` = jen u těchto příběhů z `data/pribehy/`, `false` = u žádného. Bez klíče: u příběhu
 s rodem (`rod` ve frontmatter, u `pribeh.md` v `web.json` → `pribeh.rod`), když se dokument týká někoho z toho rodu;
 jediný příběh bez rodu ukáže všechny dokumenty.
+**Nahrávky a PDF:** `{"typ": "audio", "soubor": "media/vypraveni_1.mp3", "prepis": "media/vypraveni_1.txt", "popis": "…",
+"osoby": [4]}` (u PDF `"typ": "pdf"`). Soubor leží v `media/` v kořeni projektu, export ho zkopíruje do `web/public/media/`;
+`img` není potřeba. Web má pak stránku **Fotky** (`/fotky/`) se všemi dokumenty; její texty jdou změnit ve `web.json`
+→ `"fotky": {"uvod": …, "pdf_nadpis": …, "pdf_popis": …}` (např. že PDF jsou životopisy vygenerované umělou inteligencí).
+Velké nahrávky do gitu nedávej (`media/*.mp3` do `.gitignore`), když projekt sdílíš.
+
+## `portrety.json` – profilové fotky osob (volitelné)
+`{"8": {"img": "portret_jan_novak"}}` – číslo osoby → výřez ve `vyrezy/` (čtvercový, obličej uprostřed; `vyrez.py`).
+Fotka se ukáže v záhlaví stránky osoby a jako malé kolečko v rodokmenu.
+
+## `vetve.json` – vedlejší linie z rodinného stromu (volitelné)
+Sourozenci předků a jejich potomci (i manželé) z rodinného GEDCOM: `python3 -I tools/vetve_import.py` (jen výpis),
+`--zapsat` zapíše `data/vetve.json`. Import u každého předka ověří, že ve stromu jde o tutéž osobu jako v `osoby.py`
+(jméno, rok ±2); kde nesedí, nad ní nepokračuje. Formát je v hlavičce nástroje (`rodice`: `"k16"` = předek, `"g123"` = osoba
+z větví). Všechny osoby mají stav `fam` – jsou to údaje rodinného stromu, ne matrik. Karta ze `SIDE`, která odpovídá osobě
+z větví (stejný rodič-předek, jméno, rok ±1), se k ní na webu připojí jako „z výzkumu“.
+Web pak na stránkách rodin ukáže rozbalovací větve (sourozenci přímé linie a jejich potomci, děti z dalších manželství),
+na stránce výchozí osoby její děti a stránku **DNA shody** (`/dna/`): hledání podle příjmení nebo obce mezi předky,
+větvemi a přiženěnými, s příbuzenským vztahem k výchozí osobě a očekávaným podílem sdílené DNA (% a cM).
+`kontrola.py` hlídá odkazy a upozorní, když se předek v `osoby.py` mezitím přejmenoval (větve pak mohou patřit jinam).
+
+## `novinky.md` – co je nového (volitelné)
+Krátký přehled po kolech hledání, nejnovější nahoře (`### Kolo 5 – 2. 11. 2026` + odrážky s odkazy na osoby).
+Když soubor existuje, web má stránku **Novinky** v menu. Rodina se tak nemusí probírat celým deníkem.
 
 ## `web.json` – nastavení webu
 Viz `web.md`.

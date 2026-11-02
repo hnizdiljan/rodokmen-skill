@@ -6,6 +6,12 @@ Web je statický (Astro + vyhledávání Pagefind), data bere z `data/` přes `t
 Stránky: úvod (lákadlo, statistiky, zajímavosti, mapa, rody, vějíř), příběh, zajímavosti, rody, stránka rodu,
 mapa (OpenStreetMap), vějíř přes celou obrazovku s hledáním, seznam předků, zápisy (s výřezem, rámečkem, přepisem
 a překladem), stránka osoby, rodiny, „Co hledáme“, výzkumný deník, hledání.
+Podle dat přibudou: vějíř od libovolné osoby (`/vejir/<osoba>/`, výběr „Vějíř od…“), Novinky (`data/novinky.md`),
+Fotky a dokumenty včetně nahrávek a PDF (`dokumenty.json`), Vojáci v rodu (fakta zmiňující vojnu, pluk, legie,
+odboj – stránka i položka menu se ukážou, jen když něco najdou), DNA shody a rozbalovací vedlejší linie (`data/vetve.json`),
+profilové fotky (`data/portrety.json`). Formáty v `data.md`.
+U otevřených otázek (`ISSUES` jako dict s `osoby` a `prosle`) web ukáže i „Už prověřeno“ – řádky deníku s marným
+hledáním – a otázky se objeví i na stránkách dotčených osob („Co ještě nevíme“).
 
 ## Příkazy (ve složce `web/`)
 | příkaz | co dělá |
@@ -60,6 +66,8 @@ Pozor: takový web nemá přihlášení – je vidět z celé domácí sítě. V
   „Catharina Nowakin / Kateřina Nováková“). Výchozí je dnešní spisovná podoba; původní tvar je pak jen řádkem na stránce osoby.
 - `citlive_schvaleno`: seznam úryvků textu, které uživatel na webu schválil (např. `["oběsil se ve stodole"]`) –
   `kontrola.py` je pak nehlásí jako `CITLIVÉ`. Úryvek musí obsahovat hlášené slovo; když se text změní, hlásí se znovu.
+- `bez_cenzury: true`: rodina výslovně chce na webu všechno (i žijící, i citlivé věci) – `kontrola.py` pak `CITLIVÉ`
+  nehlásí vůbec. Nastav jen na jasné přání uživatele (`soukromi.md`).
 
 ## Stránky Statistiky a Domy
 - **Statistiky** (`/statistiky/`, `tools/statistiky.py`): povolání, věk dožití a při sňatku, měsíce svateb, generační

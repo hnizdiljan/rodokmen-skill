@@ -268,6 +268,40 @@ def login_files(cfg):
     return bool(answer)
 
 
+def norm_name(text):
+    t = unicodedata.normalize("NFD", text or "")
+    return " ".join(re.findall(r"[a-z]+", "".join(c for c in t if not unicodedata.combining(c)).lower()))
+
+
+ORD = {2: "druhého", 3: "třetího", 4: "čtvrtého", 5: "pátého", 6: "šestého", 7: "sedmého", 8: "osmého"}
+
+
+def rel_gen(k, male):
+    """Vztah předka k výchozí osobě ve 2. pádě s „vašeho/vaší“: vašeho prapradědečka, vaší babičky."""
+    g = gen(k)
+    if g == 0:
+        return ""
+    if g == 1:
+        return "vašeho otce" if male else "vaší matky"
+    if g <= 7:
+        return ("vašeho " + "pra" * (g - 2) + "dědečka") if male else ("vaší " + "pra" * (g - 2) + "babičky")
+    return f"vašeho předka v {g}. generaci" if male else f"vaší předkyně v {g}. generaci"
+
+
+def desc_word(b, male):
+    """Potomek sourozence v b-té generaci pod společným párem (b=2 dítě sourozence, 3 vnuk…)."""
+    if b == 2:
+        return "syn" if male else "dcera"
+    return "pra" * (b - 3) + ("vnuk" if male else "vnučka")
+
+
+def dna_text(share):
+    """Očekávaný podíl sdílené autozomální DNA (průměr) jako procenta a cM (celkem asi 6950 cM)."""
+    pct = share * 100
+    pct_s = (f"{pct:.0f}" if pct >= 10 else f"{pct:.1f}" if pct >= 1 else f"{pct:.2f}" if pct >= 0.1 else f"{pct:.3f}").replace(".", ",")
+    return dict(share=share, pct=pct_s, cm=round(share * 6950))
+
+
 def main():
     ns = load_people()
     P, LINES, SIDE, ISSUES = ns["P"], ns["LINES"], ns["SIDE"], ns["ISSUES"]
@@ -283,6 +317,16 @@ def main():
         sys.exit("CHYBA: v data/web.json není odpověď na přihlašovací otázku – web by byl otevřený komukoli.\n"
                  "Nastavte prihlaseni.odpoved, nebo (jen když to opravdu chcete) prihlaseni.otevreny: true.")
     docs_cfg = jload("dokumenty.json", [])
+
+    def doc_item(d):   # fotka (img = výřez) nebo soubor z media/ (nahrávka .mp3, PDF) s volitelným přepisem (.txt)
+        item = dict(img=d.get("img", ""), caption=d["popis"], kind=d.get("typ", "foto"))
+        if d.get("soubor"):
+            item["file"] = "/media/" + os.path.basename(d["soubor"])
+        if d.get("prepis"):
+            item["transcript"] = "/media/" + os.path.basename(d["prepis"])
+        return item
+    portraits = {int(k): v["img"] for k, v in jload("portrety.json", {}).items()   # profilové fotky osob (výřezy)
+                 if bezpecny(v.get("img", "")) and os.path.exists(os.path.join(VYREZY, v["img"] + ".jpg"))}
     recs = {r["key"]: r for r in record_rows()}
 
     slugs, used = {}, set()
@@ -313,6 +357,34 @@ def main():
         g = gen(k)
         return k >> (g - 3) if g >= 3 else None
 
+    # vedlejší linie (data/vetve.json – sourozenci předků a jejich rodiny z rodinného stromu, tools/vetve_import.py)
+    vetve = jload("vetve.json", {}).get("osoby", [])
+    V = {v["id"]: v for v in vetve}
+
+    def vyear(v):
+        m = re.search(r"\d{4}", v.get("y") or "")
+        return int(m.group()) if m and not (v.get("y") or "").startswith("†") else None
+    kids_of = {}   # rodič („k16“ = předek, „g123“ = osoba z větví) → děti
+    for v in vetve:
+        for r in v.get("rodice", []):
+            kids_of.setdefault(r, []).append(v["id"])
+    for lst in kids_of.values():
+        lst.sort(key=lambda i: vyear(V[i]) or 9999)
+    side_branch = {}   # id(karta SIDE) → osoba z větví, když jde jednoznačně o tutéž (stejný rodič-předek, jméno, rok)
+    taken = set()
+    for s in SIDE:
+        ws = norm_name(re.split(r"[(,]", s["n"])[0]).split()
+        if len(ws) < 2:
+            continue
+        ys = re.findall(r"\d{4}", s["n"])
+        cands = [i for i in kids_of.get(f"k{s['k']}", [])
+                 if (lambda w: len(w) >= 2 and w[0] == ws[0] and w[-1] == ws[-1])(norm_name(V[i]["n"]).split())
+                 and (not ys or (vyear(V[i]) and abs(vyear(V[i]) - int(ys[0])) <= 1))]
+        if len(cands) == 1 and cands[0] not in taken:
+            side_branch[id(s)] = cands[0]
+            taken.add(cands[0])
+    side_of_branch = {side_branch[id(s)]: s for s in SIDE if id(s) in side_branch}
+
     people = {}
     for k, p in sorted(P.items()):
         if k not in slugs or k in SAME:
@@ -326,13 +398,16 @@ def main():
             status=STATUS.get(p.get("st"), ""), gen=gen(k), sex="M" if k == 1 and p.get("sex", "M") == "M" or k > 1 and k % 2 == 0 else "F",
             rel=relation(k), line=line_of(k), facts=p.get("f", []), note=p.get("note", ""), vyz=p.get("vyz", ""), records=[r for r in p.get("r", []) if r in recs],
             father=slugs.get(2 * k), mother=slugs.get(2 * k + 1),
+            hasFan=bool(slugs.get(2 * k) or slugs.get(2 * k + 1)),
             fatherUnknown=(2 * k in P and placeholder(P[2 * k])), motherUnknown=(2 * k + 1 in P and placeholder(P[2 * k + 1])),
             child=slugs.get(k // 2) if k > 1 else None, spouse=slugs.get(k ^ 1) if k > 1 else None,
             family=None, ownFamily=None, path=path,
             side=[dict(name=s["n"], text=s["t"], records=[r for r in s.get("r", []) if r in recs], rel=s.get("v") or "příbuzný",
-                       years=years(s.get("y")), kind=SIDE_KIND.get((s.get("v") or "").lower(), "other")) for s in SIDE if s["k"] == k],
+                       years=years(s.get("y")), kind=SIDE_KIND.get((s.get("v") or "").lower(), "other"),
+                       branch=side_branch.get(id(s))) for s in SIDE if s["k"] == k],
             sibStatus=SIB_STATUS.get(p.get("sour"), "none"),
-            docs=[dict(img=d["img"], caption=d["popis"]) for d in docs_cfg if k in d.get("osoby", [])],
+            docs=[doc_item(d) for d in docs_cfg if k in d.get("osoby", [])],
+            portrait=portraits.get(k),
             children=[slugs[c] for c in [k // 2] + [a // 2 for a in aliases_of.get(k, [])] if k > 1 and c in slugs],
             also=[dict(k=a, rel=relation(a), line=line_of(a), child=slugs.get(a // 2)) for a in aliases_of.get(k, [])],
         )
@@ -406,6 +481,114 @@ def main():
         for x in (fs, ms):
             if x and not people[x]["ownFamily"]:   # předek vícekrát: vlastní rodina je ta u hlavního čísla
                 people[x]["ownFamily"] = fid
+
+    # vedlejší linie pro web: osoby z větví, děti párů předků (sourozenci přímé linie), další manželství, děti výchozí osoby
+    ref_slug = lambda r: slugs.get(SAME.get(int(r[1:]), int(r[1:]))) if r.startswith("k") else r
+    branch = {}
+    for v in vetve:
+        s = side_of_branch.get(v["id"])
+        branch[v["id"]] = dict(
+            id=v["id"], name="neznámého jména" if v["n"].startswith("(beze") else v["n"], sex=v.get("sex", "?"),
+            years=years(v.get("y")), st=v.get("st", "fam"), facts=v.get("f", []),
+            parents=[x for x in map(ref_slug, v.get("rodice", [])) if x], spouses=[x for x in map(ref_slug, v.get("manzele", [])) if x],
+            children=kids_of.get(v["id"], []),
+            side=dict(name=s["n"], text=s["t"], records=[r for r in s.get("r", []) if r in recs]) if s else None)
+    for fid, fam in families.items():
+        ks = [people[x]["k"] for x in (fam["father"], fam["mother"]) if x]
+        refs_k = [f"k{k}" for k in ks]
+        both = set(kids_of.get(refs_k[0], [])) & set(kids_of.get(refs_k[1], [])) if len(refs_k) == 2 else set(kids_of.get(refs_k[0], []))
+        fam["branch"] = [i for i in kids_of.get(refs_k[0], []) if i in both]
+        fam["other"] = []   # děti předka z jiného manželství (nevlastní sourozenci přímé linie)
+        for r, slug in zip(refs_k, [x for x in (fam["father"], fam["mother"]) if x]):
+            groups = {}
+            for i in kids_of.get(r, []):
+                if i in both:
+                    continue
+                other = next((x for x in V[i]["rodice"] if x != r), None)
+                groups.setdefault(other, []).append(i)
+            for other, ids in groups.items():
+                fam["other"].append(dict(parent=slug, spouse=other if other in V else None, children=ids))
+    people[slugs[1]]["kids"] = kids_of.get("k1", [])
+    for p in people.values():
+        p["siblings"] = len(families[p["family"]]["branch"]) + sum(len(o["children"]) for o in families[p["family"]]["other"]) if p["family"] else 0
+
+    # rejstřík pro stránku „DNA shody“: kdo to je, jak je příbuzný s výchozí osobou a kolik DNA by spolu sdíleli
+    href_person = lambda s: f"/osoba/{s}/"
+
+    def fam_url(c, vid):
+        fid = people[slugs[c]]["family"] if c in slugs else None
+        return f"/rodina/{fid}/#v-{vid}" if fid else href_person(slugs[1])
+    dna, rel_of = [], {}
+    for p in people.values():
+        if p["k"] == 1:
+            continue
+        dna.append(dict(name=p["name"], years=p["years"], text=" ".join(p["facts"]), url=href_person(p["slug"]), kind="anc",
+                        rel=("váš " if p["sex"] == "M" else "vaše ") + relation(p["k"]), common="", **dna_text(0.5 ** p["gen"])))
+    for v in vetve:
+        if not v.get("rodice"):
+            continue
+        b, cur = 1, v["id"]
+        while not any(r.startswith("k") for r in V[cur]["rodice"]):
+            up = [r for r in V[cur]["rodice"] if r in V and V[r].get("rodice")]
+            if not up:
+                break
+            cur, b = up[0], b + 1
+        ks = sorted(int(r[1:]) for r in V[cur]["rodice"] if r.startswith("k"))
+        if not ks:
+            continue
+        male, sib_male = v.get("sex") == "M", V[cur].get("sex") == "M"
+        if ks[0] == 1:   # potomek výchozí osoby
+            rel = ("váš " if male else "vaše ") + ({1: "syn" if male else "dcera"}.get(b) or desc_word(b + 1, male))
+            share, common, url = 0.5 ** b, "", f"{href_person(slugs[1])}#v-{v['id']}"
+        else:
+            full = len(ks) == 2 and ks[0] // 2 == ks[1] // 2
+            c = ks[0] // 2
+            a = gen(c) + 1
+            cname = people[slugs[c]]["name"] if c in slugs else ""
+            pre = "" if full else ("nevlastní " if b == 1 or not sib_male else "nevlastního ")
+            if c == 1:
+                sib = ("bratr" if sib_male else "sestra") if b == 1 else ("vašeho bratra" if sib_male else "vaší sestry")
+                rel = (("váš " if sib_male else "vaše ") + pre + sib) if b == 1 else f"{desc_word(b, male)} {pre}{sib}"
+            else:
+                sib = ("bratr" if sib_male else "sestra") if b == 1 else ("bratra" if sib_male else "sestry")
+                rel = f"{'' if b == 1 else desc_word(b, male) + ' '}{pre}{sib} {rel_gen(c, c % 2 == 0)}" + (f" ({cname})" if cname else "")
+            if a == b and a >= 2 and full:
+                word = "bratranec" if male else "sestřenice"
+                rel += f", {'váš' if male else 'vaše'} {word}{'' if a == 2 else ' z ' + ORD.get(a - 1, str(a - 1) + '.') + ' kolena'}"
+            couple = [people[slugs[k]]["name"] for k in ks if k in slugs]
+            g_c = gen(ks[0])
+            common = " a ".join(couple) + f" – vaši {'pra' * (g_c - 1)}rodiče" if full else \
+                (couple[0] + f" – {'váš' if ks[0] % 2 == 0 else 'vaše'} {relation(ks[0])}" if couple else "")
+            share, url = (2 if full else 1) * 0.5 ** (a + b), fam_url(c, v["id"])
+        sp = [branch[x]["name"] if x in branch else people[x]["name"] for x in branch[v["id"]]["spouses"] if x in branch or x in people]
+        rel_of[v["id"]] = (rel, url)
+        dna.append(dict(name=branch[v["id"]]["name"], years=branch[v["id"]]["years"], text=" ".join(v.get("f", []) + sp),
+                        spouses=sp, url=url, kind="branch", rel=rel, common=common, **dna_text(share)))
+    for v in vetve:   # přiženění: bez pokrevního vztahu
+        if v.get("rodice") or v["n"].startswith("(beze"):
+            continue
+        sps = list(v.get("manzele", []))
+        if not sps:
+            continue
+        x = sps[0]
+        male = v.get("sex") == "M"
+        if x.startswith("k"):
+            k = SAME.get(int(x[1:]), int(x[1:]))
+            if k not in slugs:
+                continue
+            who, wrel, url = people[slugs[k]]["name"], ("váš " if k % 2 == 0 else "vaše ") + relation(k), href_person(slugs[k])
+        elif x in rel_of:
+            who, (wrel, url) = branch[x]["name"], rel_of[x]
+        else:
+            continue
+        dna.append(dict(name=branch[v["id"]]["name"], years=branch[v["id"]]["years"], text=" ".join(v.get("f", []) + [who]),
+                        url=url.split("#")[0] + f"#v-{v['id']}" if "#" in url else url, kind="inlaw",
+                        rel=f"{'manžel' if male else 'manželka'}: {who}, {wrel}", common="", share=0, pct="", cm=0))
+    for s in SIDE:   # karty z výzkumu, které nejsou ve větvích
+        if id(s) in side_branch or s["k"] not in slugs:
+            continue
+        dna.append(dict(name=s["n"], years="", text=s["t"], url=href_person(slugs[s["k"]]), kind="side",
+                        rel=f"příbuzný z výzkumu – viz {people[slugs[s['k']]]['name']}", common="", share=0, pct="", cm=0))
 
     for p in people.values():   # stránka „Osobnosti“ (ruční vyz má na webu přednost)
         p["osobnost"] = None if p["vyz"] else osobnost(p["facts"])
@@ -517,6 +700,8 @@ def main():
         return dict(title=i[0], text=i[1], people=[], checked=[])
     public_cfg = {k: v for k, v in cfg.items() if k != "prihlaseni"}
     public_cfg["maPribeh"] = has_story
+    public_cfg["maNovinky"] = os.path.exists(os.path.join(DATA, "novinky.md"))
+    public_cfg["maDna"] = bool(vetve)
     public_cfg["maVicePribehu"] = multi_stories
     public_cfg["pribehy"] = [story["slug"] for story in stories] if multi_stories else []
 
@@ -540,15 +725,15 @@ def main():
         return [st["slug"] for st in stories if (st["rod"] in doc_lines if st["rod"] is not None else len(stories) == 1)]
 
     site = dict(config=public_cfg, places=places, root=slugs[1], aliases=mirror, people=people,
-                families=families, others=others, records=records, lines=lines,
+                families=families, others=others, records=records, lines=lines, branch=branch, dna=dna,
                 issues=[issue(i) for i in ISSUES], stats=stats, hypotheses=hypotheses,
-                docs=[dict(img=d["img"], caption=d["popis"], people=[slugs[k] for k in d.get("osoby", []) if k in slugs],
-                           stories=doc_stories(d))
-                      for d in docs_cfg if os.path.exists(os.path.join(VYREZY, d["img"] + ".jpg"))])
+                docs=[dict(doc_item(d), people=[slugs[k] for k in d.get("osoby", []) if k in slugs], stories=doc_stories(d))
+                      for d in docs_cfg if d.get("soubor") or os.path.exists(os.path.join(VYREZY, d.get("img", "") + ".jpg"))])
 
     write(os.path.join(WEB, "src", "data", "site.json"), json.dumps(site, ensure_ascii=False, indent=1))
     gen_dir = os.path.join(WEB, "src", "generated")
-    for src, dst in (("archivni_dotazy.md", "dotazy.md"), ("research_log.md", "denik.md"), ("zajimavosti.md", "zajimavosti.md")):
+    for src, dst in (("archivni_dotazy.md", "dotazy.md"), ("research_log.md", "denik.md"), ("zajimavosti.md", "zajimavosti.md"),
+                     ("novinky.md", "novinky.md")):
         path = os.path.join(DATA, src)
         text = open(path, encoding="utf-8").read() if os.path.exists(path) else ""
         write(os.path.join(gen_dir, dst), strip_comments(re.sub(r"^# .*\n", "", text, count=1)))
@@ -564,16 +749,21 @@ def main():
 
     hrefs = os.path.join(gen_dir, "fan_hrefs.json")
     json.dump({k: f"/osoba/{s}/" for k, s in slugs.items()}, open(hrefs, "w", encoding="utf-8", newline="\n"))
+    fan_dir = os.path.join(gen_dir, "fan")   # vějíř od každé osoby, která má aspoň jednoho známého rodiče (/vejir/<osoba>/)
+    shutil.rmtree(fan_dir, ignore_errors=True)
+    roots = [[p["k"], os.path.join(fan_dir, s + ".svg")] for s, p in people.items() if p["hasFan"] and p["k"] > 1]
+    roots_file = os.path.join(gen_dir, "fan_koreny.json")
+    json.dump(roots, open(roots_file, "w", encoding="utf-8", newline="\n"))
     subprocess.run([sys.executable, "-I", "-X", "utf8", os.path.join(TOOLS, "fan_chart.py"),
-                    os.path.join(gen_dir, "fan.svg"), "--web", hrefs], check=True, capture_output=True)
+                    os.path.join(gen_dir, "fan.svg"), "--web", hrefs, "--koreny", roots_file], check=True, capture_output=True)
 
     gated = login_files(cfg)
 
     copied = removed = 0
     zv = os.path.join(DATA, "zvyrazneni.json")
     hl_mtime = os.path.getmtime(zv) if os.path.exists(zv) else 0
-    wanted = [k for k in list(recs) + [d["img"] for d in docs_cfg] + ([cfg["uvod"]["foto"]] if cfg.get("uvod", {}).get("foto") else [])
-              if bezpecny(k)]
+    wanted = [k for k in list(recs) + [d["img"] for d in docs_cfg if d.get("img")] + list(portraits.values())
+              + ([cfg["uvod"]["foto"]] if cfg.get("uvod", {}).get("foto") else []) if bezpecny(k)]
     for sub, src_dir in (("img", VYREZY), ("zdroje", ZDROJE)):
         dst_dir = os.path.join(WEB, "public", sub)
         os.makedirs(dst_dir, exist_ok=True)
@@ -597,6 +787,18 @@ def main():
                 continue
             shutil.copy2(src, dst)
             copied += 1
+    media_dst = os.path.join(WEB, "public", "media")   # nahrávky a PDF z media/ (dokumenty s polem „soubor“ a „prepis“)
+    for d in docs_cfg:
+        for pole in ("soubor", "prepis"):
+            if not d.get(pole):
+                continue
+            src, dst = os.path.join(ROOT, d[pole]), os.path.join(media_dst, os.path.basename(d[pole]))
+            if not os.path.exists(src):
+                print(f"POZOR: dokumenty.json – soubor {d[pole]} neexistuje")
+            elif not os.path.exists(dst) or os.path.getmtime(src) > os.path.getmtime(dst):
+                os.makedirs(media_dst, exist_ok=True)
+                shutil.copy2(src, dst)
+                copied += 1
     print(f"{len(people)} osob, {len(families)} rodin, {len(records)} zápisů, {len(lines)} rodů, {len(places)} míst; "
           f"zkopírováno {copied} obrázků{f', smazáno {removed} starých' if removed else ''}; přihlášení {'zapnuté' if gated else 'VYPNUTÉ (web je otevřený)'}")
 
@@ -604,7 +806,7 @@ def main():
     targets = dict(osoba=people, zdroj=recs, rod=lines, rodina=families)
     # s více příběhy je pribeh.md jen kopie prvního z nich – kontroluje se pod svým jménem (pribehy/<slug>.md)
     texts = {f: open(os.path.join(gen_dir, f), encoding="utf-8").read()
-             for f in (("zajimavosti.md",) if multi_stories else ("pribeh.md", "zajimavosti.md"))}
+             for f in (("zajimavosti.md", "novinky.md") if multi_stories else ("pribeh.md", "zajimavosti.md", "novinky.md"))}
     if multi_stories:
         texts.update({f"pribehy/{story['slug']}.md": story["text"] for story in stories})
     texts["web.json"] = json.dumps(cfg, ensure_ascii=False)

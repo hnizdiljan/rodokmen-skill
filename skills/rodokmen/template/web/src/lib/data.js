@@ -6,6 +6,9 @@ export const { people, families, lines, stats, issues, hypotheses, docs, config 
 export { stories };
 /** Osoby mimo přímou linii (data/osoby.py RODINA) pro stromový graf. */
 export const others = site.others ?? [];
+/** Vedlejší linie z rodinného stromu (data/vetve.json, tools/vetve_import.py) a rejstřík pro stránku DNA shody. */
+export const branch = site.branch ?? {};
+export const dna = site.dna ?? [];
 /** Počet rodů slovem pro nadpisy („Osm rodů“). */
 export const linesTitle = (n) => (['Žádný rod', 'Jeden rod', 'Dva rody', 'Tři rody', 'Čtyři rody', 'Pět rodů', 'Šest rodů', 'Sedm rodů', 'Osm rodů'][n] ?? `${n} rodů`);
 export const root = people[site.root];

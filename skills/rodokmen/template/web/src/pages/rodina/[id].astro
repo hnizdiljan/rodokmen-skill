@@ -2,7 +2,9 @@
 import Base from '../../layouts/Base.astro';
 import PersonLink from '../../components/PersonLink.astro';
 import Record from '../../components/Record.astro';
-import { people, families, lineByK, records, href } from '../../lib/data.js';
+import BranchNode from '../../components/BranchNode.astro';
+import BranchOpen from '../../components/BranchOpen.astro';
+import { people, families, lineByK, records, href, branch, config } from '../../lib/data.js';
 
 export function getStaticPaths() {
   return Object.keys(families).map((id) => ({ params: { id } }));
@@ -12,6 +14,8 @@ const father = f.father ? people[f.father] : null;
 const mother = f.mother ? people[f.mother] : null;
 const children = f.children.map((s) => people[s]);
 const line = f.line ? lineByK[f.line] : null;
+const hasBranch = (f.branch ?? []).length > 0 || (f.other ?? []).length > 0;
+const sideCards = f.side.filter((s) => !s.branch);
 const title = [father?.name ?? (f.fatherUnknown ? 'otec neuveden' : 'neznámý otec'), mother?.name ?? 'neznámá matka'].join(' a ');
 ---
 <Base title={`Rodina: ${title}`}>
@@ -40,14 +44,35 @@ const title = [father?.name ?? (f.fatherUnknown ? 'otec neuveden' : 'neznámý o
     </>
   )}
 
-  <h2>Děti</h2>
-  <ul class="facts">
-    {children.map((c) => <li><PersonLink slug={c.slug} /> – přímý předek ({c.rel})</li>)}
-  </ul>
-  {f.side.length > 0 && (
-    <div class="grid2">{f.side.map((s) => <div class="card"><h3>{s.name}{s.years && ` (${s.years})`}</h3><p class="small">{s.text}</p></div>)}</div>
+  <h2>{hasBranch ? 'Děti a jejich potomci' : 'Děti'}</h2>
+  {hasBranch ? (
+    <div class="branch">
+      {children.map((c) => (
+        <div class="br br-direct"><PersonLink slug={c.slug} /> <span class="small">– přímá linie ({c.rel}) <a href={href.person(c.slug)}>pokračuje →</a></span></div>
+      ))}
+      {f.branch.map((id) => <BranchNode id={id} />)}
+    </div>
+  ) : (
+    <ul class="facts">
+      {children.map((c) => <li><PersonLink slug={c.slug} /> – přímý předek ({c.rel})</li>)}
+    </ul>
   )}
-  <p class="small muted">Další sourozence zatím systematicky nehledáme – tady jsou jen ti, na které jsme narazili.</p>
+  {(f.other ?? []).map((o) => (
+    <>
+      <h3>Z dalšího manželství: {people[o.parent].name}{o.spouse && branch[o.spouse] ? <> a {branch[o.spouse].name}{branch[o.spouse].years && ` ${branch[o.spouse].years}`}</> : ''}</h3>
+      <p class="small muted">Nevlastní sourozenci přímé linie.</p>
+      <div class="branch">{o.children.map((id) => <BranchNode id={id} />)}</div>
+    </>
+  ))}
+  {hasBranch && <p class="small muted">Sourozenci a jejich rodiny pocházejí z rodinného stromu, pokud u nich není „z výzkumu“. Kliknutím rozbalíte další generace.{config.maDna && <> Hledat v nich podle příjmení nebo obce můžete na stránce <a href="/dna/">DNA shody</a>.</>}</p>}
+  {sideCards.length > 0 && (
+    <>
+      {hasBranch && <h3>Další příbuzní z výzkumu</h3>}
+      <div class="grid2">{sideCards.map((s) => <div class="card"><h3>{s.name}{s.years && ` (${s.years})`}</h3><p class="small">{s.text}</p></div>)}</div>
+    </>
+  )}
+  {!hasBranch && <p class="small muted">Další sourozence zatím systematicky nehledáme – tady jsou jen ti, na které jsme narazili.</p>}
+  <BranchOpen />
 
   {f.records.length > 0 && (
     <>

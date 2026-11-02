@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Vějíř předků (360°) z data/osoby.py jako SVG.
 Použití: fan_chart.py <out_dir>                         (plakát: SVG + HTML s nadpisem a legendou, PNG přes Chrome, je-li k dispozici)
-         fan_chart.py <out_file.svg> --web <hrefs.json>  (holé klikací SVG pro web – volá ho export_web.py)"""
+         fan_chart.py <out_file.svg> --web <hrefs.json>  (holé klikací SVG pro web – volá ho export_web.py)
+         … --web <hrefs.json> --koreny <koreny.json>    (navíc vějíře od dalších osob: JSON [[Kekulé, výstup.svg], …])"""
 import html, json, math, os, re, subprocess, sys
 for _s in (sys.stdout, sys.stderr):   # UTF-8 výstup i na Windows bez -X utf8 (cp1250 neumí třeba „→“)
     if hasattr(_s, "reconfigure"):
@@ -91,15 +92,18 @@ def angles(k):
     return 180 + i * span, 180 + (i + 1) * span
 
 
-def fill(k):
-    g = gen(k); p = P.get(SLOT.get(k))
+def fill(k, ck, p):
+    """Barva místa k ve vějíři. ck = číslo, podle kterého se barví rod (v hlavním vějíři k, u vějíře od jiné osoby
+    blízko výchozí osoby původní číslo, aby rody měly stejné barvy jako v hlavním vějíři)."""
+    g = gen(k)
     if p is None or p.get("st") == "unk":
         return EMPTY
     if g == 0:
         return "#5B4A3A"
     if g <= 2:
         return SIDE_COL[(k >> (g - 1)) & 1]
-    c = mix(BASE[k >> (g - 3)], LIGHT[g])
+    cg = gen(ck)
+    c = mix(BASE[ck >> (cg - 3)], LIGHT[min(cg, 10)]) if cg >= 3 else SIDE_COL[(ck >> (cg - 1)) & 1]
     return mix(c, 0.45) if p.get("st") in ("prob", "mh") else c
 
 
@@ -107,40 +111,61 @@ def fit(text, avail, fmax, fmin):
     return max(fmin, min(fmax, avail / (0.56 * max(len(text), 1))))
 
 
-paths, defs, texts, links = [], [], [], []
-slots = sorted({k for k in SLOT if gen(k) < len(RINGS)} |   # vějíř má 11 prstenců (generace 0–10); starší předky vynech
-               {c for k in SLOT for c in (2 * k, 2 * k + 1) if gen(c) <= 10})
-for k in slots:
+def rekey(root):
+    """Místa vějíře od osoby `root` (číslo v hlavním vějíři): {číslo ve vějíři: místo v hlavním vějíři}.
+    Předek ve vzdálenosti d dostane číslo 2^d + (A − root·2^d), takže `root` je 1. Bere i zrcadlená místa (SAME)."""
+    out = {}
+    for a in SLOT:
+        d = gen(a) - gen(root)
+        if d >= 0 and a >> d == root:
+            out[(1 << d) + (a - (root << d))] = a
+    return out
+
+
+def segments(S, by_orig):
+    """Segmenty vějíře. S = {číslo ve vějíři: místo v hlavním vějíři}; osoba na místě a je P[SLOT[a]].
+    by_orig: barvit rody podle míst v hlavním vějíři (vějíř od výchozí osoby, rodičů a prarodičů)."""
+    paths, defs, texts, links = [], [], [], []
+    slots = sorted({k for k in S if gen(k) < len(RINGS)} |   # vějíř má 11 prstenců (generace 0–10); starší předky vynech
+                   {c for k in S for c in (2 * k, 2 * k + 1) if gen(c) <= 10})
+    for k in slots:
+        _segment(S, by_orig, k, paths, defs, texts, links)
+    return paths, defs, texts, links
+
+
+def _segment(S, by_orig, k, paths, defs, texts, links):
     g = gen(k)
     r0, r1 = RINGS[g]
     a0, a1 = (0, 360) if g == 0 else angles(k)
-    if g == 0:
-        paths.append(f'<circle cx="{CX}" cy="{CY}" r="{r1}" fill="{fill(k)}" stroke="#fff" stroke-width="3"/>')
-    else:
-        paths.append(f'<path d="{sector(r0, r1, a0, a1)}" fill="{fill(k)}" stroke="#FBF8F2" stroke-width="{3 if g < 6 else 1.6}"/>')
-    src = SLOT.get(k)
+    ok = S.get(k)          # místo v hlavním vějíři (None = prázdné místo nad známou osobou)
+    src = SLOT.get(ok)     # číslo osoby v P
     p = P.get(src)
+    col = fill(k, ok if by_orig and ok else k, p)
+    if g == 0:
+        paths.append(f'<circle cx="{CX}" cy="{CY}" r="{r1}" fill="{col}" stroke="#fff" stroke-width="3"/>')
+    else:
+        paths.append(f'<path d="{sector(r0, r1, a0, a1)}" fill="{col}" stroke="#FBF8F2" stroke-width="{3 if g < 6 else 1.6}"/>')
     if not p:
-        continue
+        return
     name = " / ".join(p["zap"]) if WEBCFG.get("puvodni_jmena") and p.get("zap") else p["n"]
     yrs, st = years(p.get("y")), p.get("st")
-    href = HREFS.get(k) or HREFS.get(src)
+    href = HREFS.get(ok) or HREFS.get(src)
     if href:
         shape = (f'<circle cx="{CX}" cy="{CY}" r="{r1}"/>' if g == 0 else f'<path d="{sector(r0, r1, a0, a1)}"/>')
-        again = " (v rodokmenu vícekrát)" if src != k else ""
+        again = " (v rodokmenu vícekrát)" if src != ok else ""
         links.append(f'<a href="{href}"><title>{html.escape(name)} {html.escape(yrs)}{again}</title>{shape}</a>')
     unknown = st == "unk"
     style = 'font-style="italic" fill="#8A8278"' if unknown else ('font-style="italic" fill="#2B2620"' if st in ("prob", "mh") else 'fill="#1F1A15"')
     if g == 0:
         texts.append(f'<text x="{CX}" y="{CY - 8}" text-anchor="middle" font-size="44" font-weight="700" fill="#FFF8EE">{html.escape(name)}</text>')
         texts.append(f'<text x="{CX}" y="{CY + 46}" text-anchor="middle" font-size="34" fill="#F1E3CF">{html.escape(yrs)}</text>')
-        continue
+        return
     am = (a0 + a1) / 2
     if g <= 4:   # tangential text on arcs
         rm = (r0 + r1) / 2
         lines = []
-        if g == 3 and k in LINES:
-            lines.append((LINES[k][0].upper(), 21, 'font-weight="700" letter-spacing="4" fill="#5A4632"'))
+        if g in (2, 3) and by_orig and gen(ok) == 3 and ok in LINES:   # štítek rodu u pradědečků a prababiček
+            lines.append((LINES[ok][0].upper(), 21, 'font-weight="700" letter-spacing="4" fill="#5A4632"'))
         lines.append((name, {1: 40, 2: 34, 3: 30, 4: 27}[g], f'font-weight="600" {style}'))
         if yrs:
             lines.append((yrs, {1: 30, 2: 27, 3: 24, 4: 22}[g], f'{style}'))
@@ -188,6 +213,9 @@ for k in slots:
                          f'<text y="{h / 2 - f2 * 0.15:.1f}" text-anchor="middle" font-size="{f2:.1f}" {style}>{html.escape(yrs)}</text></g>')
         else:
             texts.append(f'<g {tw}><text y="{f1 * 0.35:.1f}" text-anchor="middle" font-size="{f1:.1f}" font-weight="600" {style}>{html.escape(name)}</text></g>')
+
+
+paths, defs, texts, links = segments({k: k for k in SLOT}, True)
 
 # statistics
 known = [k for k, p in P.items() if k > 1 and k not in SAME and not p["n"].startswith("otec neuveden")]
@@ -247,6 +275,17 @@ if WEB:
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" font-family="{FONT}" class="fan">'
         f'<defs>{"".join(defs)}</defs>{"".join(paths)}{"".join(texts)}<g class="fan-links">{"".join(links)}</g></svg>')
     print(OUT, len(links), "odkazů")
+    if "--koreny" in sys.argv:   # vějíře od dalších osob; do 2. generace barvy rodů jako v hlavním vějíři, dál nové rozdělení
+        roots = json.load(open(sys.argv[sys.argv.index("--koreny") + 1], encoding="utf-8"))
+        for k, out in roots:
+            S = rekey(k)
+            pa, de, te, li = segments(S, gen(k) <= 2)
+            r = RINGS[min(max(gen(q) for q in S) + 1, len(RINGS) - 1)][1] + 40   # plátno jen tak velké, jak vějíř sahá
+            os.makedirs(os.path.dirname(out), exist_ok=True)
+            open(out, "w", encoding="utf-8", newline="\n").write(
+                f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{CX - r} {CY - r} {2 * r} {2 * r}" font-family="{FONT}" class="fan">'
+                f'<defs>{"".join(de)}</defs>{"".join(pa)}{"".join(te)}<g class="fan-links">{"".join(li)}</g></svg>')
+        print(len(roots), "dalších vějířů")
     sys.exit(0)
 os.makedirs(OUT, exist_ok=True)
 svg_path = os.path.join(OUT, "rodokmen_vejir.svg")

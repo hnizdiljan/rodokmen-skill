@@ -1,0 +1,34 @@
+---
+// Jedna osoba z vedlejší linie (data/vetve.json) a pod ní její rodina – rekurzivně dolů. Kotva #v-<id>.
+import PersonLink from './PersonLink.astro';
+import { branch, people, records, href } from '../lib/data.js';
+const { id } = Astro.props;
+const b = branch[id];
+const spouse = (x) => branch[x] ? `${branch[x].name}${branch[x].years ? ' ' + branch[x].years : ''}` : null;
+const hasMore = b.facts.length > 0 || b.children.length > 0 || b.side;
+const kidsWord = (n) => (n === 1 ? '1 dítě' : n < 5 ? `${n} děti` : `${n} dětí`);
+---
+{hasMore ? (
+  <details class="br" id={`v-${id}`}>
+    <summary>
+      <span class="br-name">{b.name}</span>{b.years && <span class="br-yrs">{b.years}</span>}
+      {b.spouses.length > 0 && <span class="br-sp">× {b.spouses.map((x, i) => <>{i > 0 && ', '}{people[x] ? <PersonLink slug={x} /> : spouse(x)}</>)}</span>}
+      {b.children.length > 0 && <span class="br-kids">{kidsWord(b.children.length)}</span>}
+      {b.side && <span class="chip st-doc br-chip">z výzkumu</span>}
+    </summary>
+    <div class="br-body">
+      {b.facts.length > 0 && <ul class="facts small">{b.facts.map((f) => <li>{f}</li>)}</ul>}
+      {b.spouses.filter((x) => branch[x]?.facts.some((f) => !f.startsWith('×'))).map((x) => (
+        <p class="small muted">{branch[x].sex === 'F' ? 'Manželka' : 'Manžel'} {branch[x].name}: {branch[x].facts.filter((f) => !f.startsWith('×')).join(' · ')}</p>
+      ))}
+      {b.side && (
+        <div class="note small">{b.side.text}
+          {b.side.records.length > 0 && <> Zápisy: {b.side.records.filter((r) => records[r]).map((r, i) => <>{i > 0 && ' · '}<a href={href.record(r)}>{records[r].date}</a></>)}</>}
+        </div>
+      )}
+      {b.children.length > 0 && <div class="br-children">{b.children.map((c) => <Astro.self id={c} />)}</div>}
+    </div>
+  </details>
+) : (
+  <div class="br br-leaf" id={`v-${id}`}><span class="br-name">{b.name}</span>{b.years && <span class="br-yrs">{b.years}</span>}</div>
+)}

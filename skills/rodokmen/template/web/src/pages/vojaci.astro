@@ -1,0 +1,46 @@
+---
+// Vojáci v rodu – předci a jejich příbuzní, u kterých data zmiňují vojnu, válku, pluk, legie, odboj
+// (podle návrhu sarsonj/rodokmen-skill#40). Stránka se plní sama z faktů osob a z příbuzných mimo přímou linii.
+import Base from '../layouts/Base.astro';
+import { people, href } from '../lib/data.js';
+import { vojaci } from '../lib/vojaci.js';
+const { predci, bocni } = vojaci(people);
+---
+<Base title="Vojáci v rodu" wide>
+  <h1>Vojáci v rodu</h1>
+  <p class="lead">Předci a jejich příbuzní, kteří sloužili na vojně, bojovali ve válkách, padli, byli zajati nebo se zapojili do odboje. Údaje pocházejí z matrik, rakouských seznamů ztrát (Verlustlisten), vojenských dokladů a rodinného vyprávění.</p>
+
+  {predci.length > 0 && (<>
+    <h2>Přímí předci</h2>
+    <div class="voj-list">
+      {predci.map(({ p, fakta }) => (
+        <article class="voj">
+          <h3><a href={href.person(p.slug)}>{p.name}</a> <span class="muted">{p.years}</span></h3>
+          <ul>{fakta.map((f) => <li>{f}</li>)}</ul>
+        </article>
+      ))}
+    </div>
+  </>)}
+
+  {bocni.length > 0 && (<>
+    <h2>Další příbuzní</h2>
+    <div class="voj-list">
+      {bocni.map(({ s, u }) => (
+        <article class="voj">
+          <h3>{s.name}</h3>
+          <p>{s.text}</p>
+          <p class="small muted">Příbuzný: <a href={href.person(u.slug)}>{u.name}</a></p>
+        </article>
+      ))}
+    </div>
+  </>)}
+</Base>
+
+<style>
+  .voj-list { display: grid; gap: .8rem; }
+  .voj { background: var(--paper); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--radius); padding: .7rem 1rem; }
+  .voj h3 { margin: 0 0 .3rem; font-size: 1.05rem; }
+  .voj ul { margin: 0; padding-left: 1.1rem; }
+  .voj li { margin: .2rem 0; }
+  .voj p { margin: .2rem 0; }
+</style>

@@ -1,0 +1,84 @@
+---
+import Base from '../layouts/Base.astro';
+import { dna, root } from '../lib/data.js';
+const index = dna.map((d) => ({ n: d.name, y: d.years, t: d.text, u: d.url, k: d.kind, r: d.rel, c: d.common, p: d.pct, cm: d.cm, s: d.share }));
+const counts = { branch: dna.filter((d) => d.kind === 'branch').length, anc: dna.filter((d) => d.kind === 'anc').length };
+---
+<Base title="DNA shody">
+  <h1>DNA shody</h1>
+  <p class="lead">Máte v DNA testu (MyHeritage, Ancestry, FamilyTreeDNA…) shodu a vidíte její rodokmen? Napište sem příjmení nebo obec, které v něm vidíte.
+    Ukáže se, kdo z naší rodiny to může být, jak je příbuzný s vámi („vy“ = {root.name}) a kolik DNA byste spolu asi sdíleli.</p>
+
+  <form class="dna-search" autocomplete="off" onsubmit="return false">
+    <input type="search" id="dna-q" placeholder="Příjmení, obec nebo jméno – třeba Novák, Holice" aria-label="Hledat příjmení, obec nebo jméno" autofocus />
+  </form>
+  <p class="small muted" id="dna-info">Hledá se mezi {counts.anc} přímými předky, {counts.branch} sourozenci předků a jejich potomky a mezi jejich manželi. Diakritika a velká písmena nevadí.</p>
+  <div id="dna-results" class="dna-results"></div>
+
+  <details class="card dna-help">
+    <summary><strong>Jak číst čísla o DNA</strong></summary>
+    <div class="small">
+      <p>Procento a cM (centimorgany) jsou <strong>průměr</strong>, který se dá u takového příbuzenství čekat. Testovací firmy u shody ukazují „sdílenou DNA“ v cM – porovnejte ji s číslem tady. Skutečné hodnoty kolísají, u vzdálenějších příbuzných klidně na polovinu nebo dvojnásobek, a od bratranců 4. kolena dál se DNA nemusí sdílet vůbec.</p>
+      <p>Číslo platí pro tu osobu samotnou. Každá další generace jejích potomků sdílí zhruba polovinu: její děti asi polovinu, vnoučata čtvrtinu. Shoda, která je o generaci mladší než osoba tady, tedy bude mít asi poloviční cM.</p>
+      <p>Přiženění (manželé příbuzných) s vámi pokrevně příbuzní nejsou – shoda by vedla přes jejich společné děti.</p>
+    </div>
+  </details>
+
+  <script type="application/json" id="dna-data" set:html={JSON.stringify(index)} />
+  <script>
+    type E = { n: string; y: string; t: string; u: string; k: string; r: string; c: string; p: string; cm: number; s: number };
+    const data: E[] = JSON.parse(document.getElementById('dna-data')!.textContent || '[]');
+    const norm = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    const idx = data.map((d) => ({ d, name: norm(d.n), all: norm(`${d.n} ${d.y} ${d.t}`) }));
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    const out = document.getElementById('dna-results')!;
+    const info = document.getElementById('dna-info')!;
+    const infoDefault = info.textContent;
+    const KIND: Record<string, string> = { anc: 'přímý předek', branch: 'vedlejší linie', inlaw: 'přiženěný', side: 'z výzkumu' };
+
+    // úryvek textu (fakta), kde je hledané slovo – ať je vidět, proč se osoba našla (obec, manžel…)
+    const snippet = (d: E, words: string[]) => {
+      const t = d.t;
+      const nt = norm(t);
+      for (const w of words) {
+        const i = nt.indexOf(w);
+        if (i >= 0 && !norm(d.n).includes(w)) {
+          const a = Math.max(0, i - 40), b = Math.min(t.length, i + w.length + 50);
+          return (a > 0 ? '…' : '') + esc(t.slice(a, i)) + '<mark>' + esc(t.slice(i, i + w.length)) + '</mark>' + esc(t.slice(i + w.length, b)) + (b < t.length ? '…' : '');
+        }
+      }
+      return '';
+    };
+
+    const card = (d: E, words: string[]) => {
+      const sn = snippet(d, words);
+      const dnaLine = d.k === 'anc'
+        ? `Od předka v této generaci máte v průměru <strong>${d.p} %</strong> DNA (asi ${d.cm} cM).`
+        : d.k === 'branch'
+          ? `Kdyby tato osoba udělala test, sdíleli byste asi <strong>${d.p} %</strong> DNA (asi ${d.cm} cM). Její děti asi polovinu, vnoučata čtvrtinu.`
+          : '';
+      return `<div class="card dna-card">
+        <div class="dna-head"><a href="${d.u}"><strong>${esc(d.n)}</strong></a>${d.y ? ` <span class="muted">${esc(d.y)}</span>` : ''} <span class="chip">${KIND[d.k] ?? ''}</span></div>
+        <p class="dna-rel">${esc(d.r)}</p>
+        ${d.c ? `<p class="small">Společní předci: ${esc(d.c)}</p>` : ''}
+        ${dnaLine ? `<p class="small">${dnaLine}</p>` : ''}
+        ${sn ? `<p class="small muted">${sn}</p>` : ''}
+        <p class="small"><a href="${d.u}">Ukázat v rodokmenu →</a></p>
+      </div>`;
+    };
+
+    const run = () => {
+      const q = norm((document.getElementById('dna-q') as HTMLInputElement).value.trim());
+      const words = q.split(/\s+/).filter((w) => w.length >= 2);
+      if (!words.length) { out.innerHTML = ''; info.textContent = infoDefault; return; }
+      const hits = idx.filter((x) => words.every((w) => x.all.includes(w)))
+        .sort((a, b) => (Number(words.every((w) => b.name.includes(w))) - Number(words.every((w) => a.name.includes(w)))) || (b.d.s - a.d.s));
+      info.textContent = hits.length ? `Nalezeno ${hits.length}${hits.length > 80 ? ' – ukazuji prvních 80, zpřesněte hledání' : ''}. Nahoře ti, kdo mají slovo ve jméně, pak podle blízkosti příbuzenství.` : 'Nic nenalezeno. Zkuste jen část slova (třeba „Nov“) nebo jiný tvar (Novák / Nováková).';
+      out.innerHTML = hits.slice(0, 80).map((x) => card(x.d, words)).join('');
+    };
+    const input = document.getElementById('dna-q') as HTMLInputElement;
+    input.addEventListener('input', run);
+    const q0 = new URLSearchParams(location.search).get('q');
+    if (q0) { input.value = q0; run(); }
+  </script>
+</Base>
