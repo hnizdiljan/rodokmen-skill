@@ -103,3 +103,15 @@ Před zveřejněním zkontroluj soukromí **každého** souboru `data/pribehy/*.
 - Poctivě: co nevíme, napiš jako otázku nebo domněnku („nejspíš“, „podle rodiny“). Nic nevymýšlej kvůli plynulosti.
 - Na konci kapitola o dnešku: jen jména a vztahy žijících, bez podrobností.
 - Ostatní rody dostanou svůj prostor na stránkách rodů (popis v `LINES`, `HYPOTEZY`) a v zajímavostech.
+
+## Kronika k tisku (PDF pro babičku)
+Rodina někdy chce příběh jedné větve jako „knížku“ ve stylu historických kronik. Osvědčilo se:
+- Text z příběhu a zajímavostí, kapitoly po generacích; **domyšlené pasáže kurzívou** a jednou větou na začátku
+  vysvětli, že kurzíva je domněnka (dobový kontext, ne zápis z matriky). Fakta s datem a místem nech obyčejným písmem.
+- Jedna HTML stránka v `vystupy/` (tiskové styly `@page`, patkové písmo, výřezy zápisů a mapa jako obrázky) a z ní
+  PDF headless prohlížečem: `chrome --headless --print-to-pdf=vystupy/kronika.pdf vystupy/kronika.html`
+  (Windows: Microsoft Edge `msedge` umí totéž; `fan_chart.py` hledá prohlížeč stejně).
+- Ilustrace jako sépiová perokresba z fotky domu nebo kostela stačí ImageMagickem:
+  `magick foto.jpg -colorspace Gray -sketch 0x10+120 -sepia-tone 80% kresba.jpg` (sílu čar ladí `0x10`).
+  Fotky ze Street View a cizí fotky mají licenci – pro kroniku jen v rodině, mimo rodinu jen vlastní fotky.
+- Soukromí jako u webu (`soukromi.md`): tištěná kronika se dál půjčuje.

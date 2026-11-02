@@ -100,7 +100,8 @@ Cíl: znát co nejvíc o 3–4 generacích nazpět, než sáhneš do matrik.
   pracovní převody do `pracovni/`; na web patří jen samostatně schválené výřezy. Přečti dokumenty celé (PDF/fotky) a vytěž.
   Soubor `.doc` nejdřív zkontroluj lokálně: pokud začíná RTF hlavičkou `{\rtf`, otevři nebo převeď ho ve Wordu či
   LibreOffice. Nepoužívej online převodníky a originál ani pracovní převod neposílej na web.
-- Doporuč zeptat se nejstarších žijících příbuzných – teď, dokud to jde. Nabídni seznam otázek.
+- Doporuč zeptat se nejstarších žijících příbuzných – teď, dokud to jde. Nabídni seznam otázek. Pro příbuzné mimo chat
+  se osvědčila tabulka k vyplnění (`.xlsx`/`.csv`, řádek = osoba); ptej se v ní i na fotky náhrobků a doklady vystěhovalců.
 - **Příbuzenství ber doslova, jak ho rodina řekla** („pradědeček babičky“ ≠ „otec babičky“) – nikdy ho neopravuj podle
   toho, co se ti hodí do dat. Při nejasnosti se zeptej. Ztotožnění jen podle křestního jména veď jako `prob` s poznámkou.
 - Vše zapiš: `data/udaje_od_rodiny.md` (kdo co řekl), osoby do `data/osoby.py` se stavem `fam`
@@ -273,8 +274,9 @@ Podrobně `reference/web.md`. Ve zkratce:
 
 ## Fáze 5 – Zveřejnění (volitelné, jen se souhlasem)
 Výchozí cesta je **Netlify** (zdarma): `npm run nasadit`. Přihlášení k Netlify a první propojení webu jsou interaktivní –
-dej je uživateli jako `! npx netlify-cli login` (v Claude Code; jinde jako blok ke zkopírování, bez `!`) atd. (postup v `reference/web.md`). Pokročilá varianta: vlastní server (Docker/CapRover).
-Nic nezveřejňuj bez výslovného souhlasu uživatele.
+dej je uživateli jako `! npx netlify-cli login` (v Claude Code; jinde jako blok ke zkopírování, bez `!`) atd. (postup v `reference/web.md`). Pokročilá varianta: vlastní server (Docker/CapRover), Cloudflare.
+Nic nezveřejňuj bez výslovného souhlasu uživatele. Každé nasazení na Netlify stojí kredity z měsíčního limitu zdarma –
+nasazuj jen na pokyn nebo na konci kola a řekni to uživateli při zveřejnění.
 
 ## Poznámky pro správce skillu
 Skill se zlepšuje podle zkušeností lidí, kteří ho používají. Proto **průběžně zapisuj do `poznamky_pro_skill.md`**
