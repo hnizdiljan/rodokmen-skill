@@ -439,7 +439,7 @@ Stav ověřený v říjnu 2026 ze zkušebního prostředí skillu: slovenské (a
 - Snímky filmu (DGS): seznam přes `POST /search/filmdatainfo/image-data` s `{"type":"film-data","args":{"dgsNum":"00…","state":{"i":"0"},"locale":"cs"}}`
   (`images[]` = ARK). Snímek: `https://www.familysearch.org/service/records/storage/deepzoomcloud/dz/v1/<ARK 3:1:…>/$dist`
   (plné rozlišení), malé náhledy `…/image_files/8/0_0.jpg`. **Po ~1000 rychlých požadavcích přijde HTTP 429** a blokace
-  na desítky minut – stahuj jen konkrétní snímky, nanejvýš pár za sekundu, hromadné procházení knih nedělej.
+  na desítky minut – stahuj jen konkrétní snímky, nanejvýš jeden za 2 sekundy (jako všude v prohlížeči), hromadné procházení knih nedělej.
   U plných snímků přišla ochrana („Pardon Our Interruption“, místo JPEG stránka HTML) už po ~40 rychlých stažení –
   drž se pravidla prohlížeče ze SKILL.md (nejvýš 1 požadavek za 2 s, žádné smyčky) a nic neobcházej. Snímky omezené smlouvou vracejí 403 → `archivni_dotazy.md`.
 - Obrázek z cizího webu přes prohlížeč na disk neuložíš bez souhlasu uživatele – zápis pak zapiš bez výřezu, s odkazem na
