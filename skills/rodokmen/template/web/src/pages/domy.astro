@@ -60,6 +60,8 @@ const payload = JSON.stringify({ domy, rody, jist: JIST });
 <script>
   import L from 'leaflet';
   const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  // odkaz z geojsonu jen http(s) – jinak by šel podstrčit javascript: odkaz
+  const safeUrl = (u: unknown) => (typeof u === 'string' && /^https?:\/\//i.test(u) ? u : '');
   const mapEl = document.querySelector<HTMLElement>('.dmap');
   if (mapEl) init(mapEl);   // bez domů se mapa nevykresluje
 
@@ -125,7 +127,7 @@ const payload = JSON.stringify({ domy, rody, jist: JIST });
       `<strong class="dtit">${esc(d.obec)} čp. ${esc(d.cp)}</strong>` +
       (d.rod ? `<span class="y"> · ${esc(r.name)}</span>` : '') + who + zap +
       (d.vyrez ? `<a href="${esc(d.vyrez)}" target="_blank"><img src="${esc(d.vyrez)}" alt="výřez staré skici" class="dimg"></a>` : '') +
-      `<p class="y">${d.skica ? `${archiv(d.skica)}, indikační skica ${d.skica_url ? `<a href="${esc(d.skica_url)}" target="_blank" rel="noopener">${esc(d.skica)}</a>` : esc(d.skica)}${d.skica_rok ? ` (${esc(d.skica_rok)})` : ''}, ČÚZK – Archiv. ` : ''}${esc(jist[d.jistota] || '')}` +
+      `<p class="y">${d.skica ? `${archiv(d.skica)}, indikační skica ${safeUrl(d.skica_url) ? `<a href="${esc(safeUrl(d.skica_url))}" target="_blank" rel="noopener">${esc(d.skica)}</a>` : esc(d.skica)}${d.skica_rok ? ` (${esc(d.skica_rok)})` : ''}, ČÚZK – Archiv. ` : ''}${esc(jist[d.jistota] || '')}` +
       `${d.dnes_na_miste?.length ? ` Dnes: ${esc(d.dnes_na_miste[0].split(',')[0])}.` : ''}</p>`,
       { maxWidth: 280 });
     markers[d.id] = m;

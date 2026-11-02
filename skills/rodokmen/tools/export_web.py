@@ -67,7 +67,7 @@ def strip_comments(md):
     return re.sub(r"<!--.*?-->\n?", "", md, flags=re.S)
 
 
-def story_frontmatter(path, slug, require_rod=True):
+def story_frontmatter(path, slug):
     """Načte omezené skalární frontmatter pro příběhy bez další Python závislosti."""
     text = open(path, encoding="utf-8").read()
     match = re.match(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|\Z)", text, re.S)
@@ -95,18 +95,19 @@ def story_frontmatter(path, slug, require_rod=True):
                 sys.exit(f"CHYBA: {path}: neuzavřená hodnota {key}.")
             value = value[1:-1].replace("''", "'")
         fields[key] = value
-    for key in ("title", "lead") + (("rod",) if require_rod else ()):
+    for key in ("title", "lead"):
         if key not in fields:
             sys.exit(f"CHYBA: {path}: ve frontmatter chybí pole {key}.")
     if not fields["title"].strip():
         sys.exit(f"CHYBA: {path}: title nesmí být prázdný.")
     rod = fields.get("rod")
-    if require_rod and not re.fullmatch(r"(?:[8-9]|1[0-5])", rod or ""):
-        sys.exit(f"CHYBA: {path}: rod musí být číslo 8 až 15.")
+    # rod je volitelný (příběh nemusí patřit jednomu rodu – třeba „Za války“); je-li, musí to být číslo 8–15
+    if rod is not None and not re.fullmatch(r"(?:[8-9]|1[0-5])", rod):
+        sys.exit(f"CHYBA: {path}: rod musí být číslo 8 až 15 (nebo pole rod vynech).")
     if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", slug):
         sys.exit(f"CHYBA: {path}: název souboru musí být bezpečný slug z malých písmen, číslic a pomlček.")
     return dict(slug=slug, title=fields["title"], lead=fields["lead"],
-                rod=int(rod) if require_rod else None, text=text)
+                rod=int(rod) if rod is not None else None, text=text)
 
 
 def slugify(text):
@@ -508,7 +509,9 @@ def main():
 
     # odkazy v textech, které nikam nevedou (adresa osoby se změní třeba doplněním roku narození: jan-novak → jan-novak-1798)
     targets = dict(osoba=people, zdroj=recs, rod=lines, rodina=families)
-    texts = {f: open(os.path.join(gen_dir, f), encoding="utf-8").read() for f in ("pribeh.md", "zajimavosti.md")}
+    # s více příběhy je pribeh.md jen kopie prvního z nich – kontroluje se pod svým jménem (pribehy/<slug>.md)
+    texts = {f: open(os.path.join(gen_dir, f), encoding="utf-8").read()
+             for f in (("zajimavosti.md",) if multi_stories else ("pribeh.md", "zajimavosti.md"))}
     if multi_stories:
         texts.update({f"pribehy/{story['slug']}.md": story["text"] for story in stories})
     texts["web.json"] = json.dumps(cfg, ensure_ascii=False)
