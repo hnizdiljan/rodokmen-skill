@@ -52,7 +52,9 @@ def udrzba():
 
 
 def get(path, referer=None, binary=False, data=None, ajax_base=None):
-    """GET/POST s opakováním (2, 4, 8 s; při HTTP 429 déle). Vrací (obsah, konečná adresa)."""
+    """GET/POST s opakováním (2, 4, 8 s) jen u výpadku spojení a chyb 5xx. Vrací (obsah, konečná adresa).
+    HTTP 429 („moc dotazů“) se neopakuje: brzda (slusne.py) zastaví web pro všechny procesy aspoň na dobu,
+    kterou archiv žádá v Retry-After (#37) – předčasný další pokus by blokaci jen prodloužil."""
     url = path if path.startswith("http") else BASE + path
     wait = 0
     for attempt in range(4):
@@ -72,12 +74,12 @@ def get(path, referer=None, binary=False, data=None, ajax_base=None):
                 d = r.read()
                 return (d if binary else d.decode("utf-8", "replace")), r.geturl()
         except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt < 3:   # moc požadavků – počkat (podle Retry-After) a zkusit znovu
-                ra = e.headers.get("Retry-After", "")
-                wait = min(int(ra), 120) if ra.isdigit() else 30 * (attempt + 1)
-                print(f"eBadatelna: HTTP 429; další pokus za {wait or PAUZA} s "
-                      f"({attempt + 2}/4).", file=sys.stderr, flush=True)
-            elif e.code < 500 or attempt == 3:
+            if e.code == 429:   # sem se dostane jen bez brzdy; nikdy neopakovat dřív, než archiv dovolí
+                pockat = slusne.retry_after(e.headers.get("Retry-After"))
+                raise Chyba("portál hlásí příliš mnoho dotazů (HTTP 429)"
+                            + (f" a žádá počkat {pockat // 60 or 1} min" if pockat else "")
+                            + " – nic dalšího nestahuj, zkus to až po té době.")
+            if e.code < 500 or attempt == 3:
                 raise Chyba(f"portál vrátil chybu HTTP {e.code} ({url}).{udrzba()}")
             else:
                 print(f"eBadatelna: HTTP {e.code}; další pokus za {wait} s "

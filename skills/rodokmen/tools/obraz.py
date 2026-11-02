@@ -7,9 +7,24 @@ Ostatní nástroje ho importují takto (`python3 -I` nepřidává složku skript
 import glob, os, shutil, subprocess, sys
 
 
+# Homebrew na macOS (Apple Silicon /opt/homebrew, Intel /usr/local) – shell, ze kterého běží Claude, je nemusí mít v PATH
+DALSI_CESTY = ("/opt/homebrew/bin/magick", "/usr/local/bin/magick")
+
+# Vybledlé snímky (#37): šedá, místní kontrast (CLAHE), roztažení a doostření. Jen pro čtení – výřezy na web zůstávají původní.
+VYLEPSIT = ["-colorspace", "Gray", "-clahe", "25x25%+128+4", "-contrast-stretch", "1%x50%", "-level", "5%,70%",
+            "-unsharp", "0x1.2+1.2+0.02"]
+VYLEPSIT_IM6 = ["-colorspace", "Gray", "-normalize", "-level", "15%,75%", "-unsharp", "0x1.2+1.2+0.02"]   # convert nemá -clahe
+
+
+def vylepsit(m):
+    """Volby ImageMagicku pro vybledlý snímek (m = cesta k ImageMagicku z magick())."""
+    return VYLEPSIT_IM6 if os.path.basename(m).lower().startswith("convert") else VYLEPSIT
+
+
 def najdi_magick():
     """Cesta k ImageMagicku, nebo None. ImageMagick 7 (magick), jinak 6 (convert) – ten ale ne na Windows, kde je convert.exe jiný program."""
     return (shutil.which("magick") or next(iter(sorted(glob.glob(r"C:\Program Files\ImageMagick*\magick.exe"))), None)
+            or next((c for c in DALSI_CESTY if os.name != "nt" and os.access(c, os.X_OK)), None)
             or (os.name != "nt" and shutil.which("convert")) or None)
 
 
