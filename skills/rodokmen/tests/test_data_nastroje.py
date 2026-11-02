@@ -118,6 +118,36 @@ class KontrolaTests(unittest.TestCase):
         self.assertFalse(kontrola.platne_datum("29. 2. 1900"))
 
 
+class ZapisSmazatTests(unittest.TestCase):
+    def test_smazat_zapis_i_obrazky_ostatni_beze_zmeny(self):   # #54
+        with tempfile.TemporaryDirectory() as tmp:
+            zaz = [dict(klic="a", druh="N", datum="1850", nazev="A", shrnuti="a"),
+                   dict(klic="cizi", druh="N", datum="1851", nazev="B", shrnuti="b"),
+                   dict(klic="c", druh="N", datum="1852", nazev="C", shrnuti="c")]
+            root = projekt(tmp, zaznamy=zaz)
+            (root / "data" / "zaznamy.json").write_text(json.dumps(zaz, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+            prep = '{\n "cizi": {"orig": "x", "cs": "y"}\n}\n'
+            (root / "data" / "prepisy.json").write_text(prep, encoding="utf-8")
+            (root / "data" / "zvyrazneni.json").write_text('{\n "a": {"boxes": []},\n "cizi": {"boxes": []}\n}\n', encoding="utf-8")
+            for d in ("vyrezy", "zdroje"):
+                (root / d).mkdir()
+                (root / d / "cizi.jpg").write_bytes(b"x")
+            kod, out = spust(root, "zapis.py", "smazat", "cizi")
+            self.assertEqual(kod, 0, out)
+            self.assertIn("Nic nesmazáno", out)
+            self.assertTrue((root / "vyrezy" / "cizi.jpg").exists())
+            kod, out = spust(root, "zapis.py", "smazat", "cizi", "--ano")
+            self.assertEqual(kod, 0, out)
+            self.assertEqual([z["klic"] for z in json.loads((root / "data" / "zaznamy.json").read_text(encoding="utf-8"))],
+                             ["a", "c"])
+            self.assertEqual((root / "data" / "zaznamy.json").read_text(encoding="utf-8"),
+                             json.dumps([zaz[0], zaz[2]], ensure_ascii=False, indent=1) + "\n")
+            self.assertEqual((root / "data" / "prepisy.json").read_text(encoding="utf-8"), "{}\n")
+            self.assertEqual((root / "data" / "zvyrazneni.json").read_text(encoding="utf-8"), '{\n "a": {"boxes": []}\n}\n')
+            self.assertFalse((root / "vyrezy" / "cizi.jpg").exists())
+            self.assertFalse((root / "zdroje" / "cizi.jpg").exists())
+
+
 @unittest.skipUnless(najdi_magick(), "export_web potřebuje ImageMagick jen na rámečky; fan_chart ho nepotřebuje")
 class ExportWebTests(unittest.TestCase):
     def export(self, same=""):

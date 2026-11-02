@@ -332,6 +332,7 @@ Nedělej to pořád. Postup:
 | `ramecek.py <klíč> x0,y0,x1,y1` | rámeček čteného místa + kontrolní obrázek (souřadnice vůči výřezu, ne snímku) |
 | `mista.py pridej "Obec"` / `mista.py` | místa pro mapu (souřadnice z OpenStreetMap) |
 | `zapis.py <soubor> <klíč> <vstup.json> [--sloucit]` | přidá / změní položku v `zaznamy`, `svazky`, `prepisy`… beze změny formátu |
+| `zapis.py smazat <klíč> [--ano]` | odebere cizí zápis ze `zaznamy`, `prepisy`, `zvyrazneni` i jeho výřezy (bez `--ano` jen ukáže co) |
 | `slusne.py <skript.py> / curl … / bash x.sh / stav` | brzda proti zablokování archivem – vlastní skripty a curl spouštěj přes ni |
 | `cache.py` | sdílená cache celých snímků (`~/.cache/rodokmen_snimky`); stahovací nástroje ji používají samy – stejný snímek podruhé jde z disku, ne z archivu |
 | `kontrola.py` | kontrola dat; hlásí i citlivé údaje na webu a kdy psát příběh |

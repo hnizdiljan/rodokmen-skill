@@ -286,7 +286,7 @@ def main():
     for w in warn:
         print("upozornění:", w)
     if not err and not warn:
-        print("Vše v pořádku.")
+        print("Vše v pořádku – data do sebe zapadají (kontrola struktury, ne toho, že je rodokmen správně).")
     sys.exit(1 if err else 0)
 
 
