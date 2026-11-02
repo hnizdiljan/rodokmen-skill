@@ -11,3 +11,13 @@ Co by šlo zjistit jen v badatelně archivu nebo na matričním úřadě (a pro�
 - Narození/sňatek v cizině: Zvláštní matrika (ÚMČ Brno-střed), pokud šlo o občana ČSR
 - Stav: nezasláno / zasláno <datum> / odpověď
 -->
+
+<!-- Vzor žádosti na matriční úřad (postup: SKILL_DIR/reference/matriky.md → Lhůty; odesílá uživatel sám):
+## Doslovný výpis – <druh zápisu> <jméno> <rok>
+- Úřad: Matriční úřad <obec> (datová schránka <ID ověřené v Seznamu datových schránek> / adresa)
+- Text: Žádám o vydání doslovného výpisu ze zápisu o <narození / uzavření manželství / úmrtí> <jméno a příjmení>,
+  <datum a místo události>, rodiče <jména, rodné příjmení matky>. Výpis potřebuji pro genealogický výzkum.
+  Jsem <vztah k osobě> (přikládám <doklady o příbuzenství, je-li potřeba>). <Jméno, adresa, datum narození žadatele.>
+- Doklady: <rodný list žadatele, rodný list rodiče… / nejsou potřeba (zápis starší než 100 let)>
+- Stav: nezasláno / zasláno <datum> / odpověď
+-->

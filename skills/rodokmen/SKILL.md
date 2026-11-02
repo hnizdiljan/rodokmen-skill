@@ -114,6 +114,8 @@ Cíl: znát co nejvíc o 3–4 generacích nazpět, než sáhneš do matrik.
   Nedoloženou samostatnou rodinu automaticky nepřipojuj do `P` ani `LINES`. Jako `SIDE` ji veď jen jako
   výslovně označenou stopu u konkrétního možného příbuzného; jinak ji ponech odděleně v deníku.
   Poznámky ve stromu bývají plné rodinných historek. Přečti je a vytěž do `udaje_od_rodiny.md`.
+  GEDCOM z MyHeritage: citace (`SOUR`) bývají skoro jen cizí stromy („… Web Site“) → takové údaje `mh`; místa jsou
+  anglicky s okresem a krajem („Obec, Olomouc District, …“) – do `osoby.py` zkrať na obec.
   Starší strom z **Brother's Keeper** (kódování ANSI a česká data „SRPEN 1945“ nástroj převede sám): místa tam bývají
   v 6. pádě („Táboře“) – do `osoby.py` je přepiš do 1. pádu. Kořenem takového stromu často nejsou uživatel, ale jeho děti
   (oba rody) – výchozí osobu proto vyber jménem.
@@ -174,6 +176,8 @@ Pravidla, která chrání kvalitu (naučená na skutečném projektu):
   (objekt napiš do `pracovni/x.json`, nástroj změní jen tu položku), `osoby.py` a markdown nástrojem pro úpravu souborů.
   Nikdy `sed -i` ani skript, který soubor přepíše celý – rozbije formát a v historii je pak změněný celý soubor.
 - **`doc` jen to, co jsi četl přímo na snímku.** Shoda jména a doby bez přímého dokladu = `prob` + poznámka proč.
+  Rozlišuj „zápis doložen“ a „vazba na rodinu doložena“: rejstřík, index sčítání nebo cizí strom dají jen kandidáta.
+  Sporná slova nech nezávisle přečíst podruhé. Postup a důkazní standard (GPS): `reference/matriky.md` → Ověřování.
 - **Nic nedomýšlej.** Nejisté čtení „(?)“, rozpory zapiš do `ISSUES`. Písaři se pletli (jména sourozenců, věk, Anna/Františka).
 - Při změně Kekulého čísel zkontroluj a aktualizuj i odkazy na čísla osob: `SIDE.k`, klíče `LINES`,
   číselné odkazy v `web.json` a odkazy na osoby v příbězích. Zkontroluj také `SAME` a další textové odkazy.
@@ -225,8 +229,12 @@ Pomocníci stojí hodně kreditů – před velkým kolem řekni uživateli, co 
 Do zadání jim napiš technické pasti z `reference/matriky.md` (macOS: zsh; Windows: `python -I -X utf8`, `magick`)
 a pravidla brzdy výše (síť jen přes `tools/slusne.py`, při hlášce „zastavený“ skončit a ohlásit).
 **V zadání chtěj u každého prošlého snímku, co na něm skutečně přečetl** (rok, první jméno), ne jen „prošel jsem
-sn. 20–40“ – pomocník jinak přehlédne, že se mu část snímků nenačetla. Na špatně čitelné knihy (kurent 1. poloviny
+sn. 20–40“ – pomocník jinak přehlédne, že se mu část snímků nenačetla, a „nálezy“ ze snímku, který se nezobrazil,
+si i domyslí. Dej mu **kontrolní známý zápis** ve stejné knize: když ho nenajde, jeho „nenalezeno“ neplatí.
+Šablona zadání a jak výsledek přebírat: `reference/pomocnici.md`. Na špatně čitelné knihy (kurent 1. poloviny
 19. století, vybledlé snímky) pomocníky nepouštěj, nebo jim dej přesný snímek; ARON a Porta fontium zvládají dobře.
+Dvě sezení, která zapisují do `data/` (deník, `osoby.py`), ve stejném projektu najednou nepouštěj – čísla řádků deníku
+se kříží a změny nejdou oddělit; druhé sezení ať píše jen do `pracovni/` jako pomocník.
 
 ### Kdy přestat
 Linie končí, když matriky mlčí (nemanželské dítě bez otce, shořelé knihy, chybějící svazky) nebo když jsi
