@@ -167,7 +167,7 @@ O mladší údaje se žádá na matričním úřadě. Claude vám řekne, kdy to
 ```
 skills/rodokmen/
   SKILL.md           průvodce pro Clauda (fáze, pravidla)
-  reference/         podrobné návody: čtení matrik, portály archivů, formát dat, web, soukromí,
+  reference/         podrobné návody: čtení matrik, zadání pomocníků, portály archivů, formát dat, web, soukromí,
                      metodická příručka (playbook, anglicky)
   tools/             nástroje v Pythonu (ARON, výřezy, rámečky, mapa, kontrola dat, export do webu, vějíř)
   template/          šablona projektu: prázdná data, ukázková rodina, web (Astro)
