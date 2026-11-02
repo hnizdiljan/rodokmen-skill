@@ -6,6 +6,53 @@ dá v repozitáři **Watch → Custom → Releases**.
 
 Projekt založený starší verzí Claude sám nabídne aktualizovat (pozná to podle souboru `VERZE`).
 
+## 0.7.0 – 2. 11. 2026
+
+Sloučené pull requesty a opravy podle issues (fork hnizdiljan/rodokmen-skill).
+
+**Nové**
+- Web: plynulý vějíř s přibližováním (#55), víc příběhů rodů v `data/pribehy/<slug>.md` (#49, #15), stránky
+  Statistiky a Domy (#19), stromový graf rodiny (#13), stránka Osobnosti s nástrojem `osobnosti.py` (#23),
+  datum poslední aktualizace a náhled webu v místní síti (#41).
+- Nové archivní nástroje (#29): MZA Brno (`mza.py`), SOA Litoměřice, Matricula, Vademecum NA, databáze obětí
+  a vězňů (Terezínská iniciativa, Památník Terezín, Arolsen, Mauthausen), Encyklopedie Brna, `smoke_test.py`.
+  Všechny jdou přes brzdu `slusne.py`.
+- Sdílená mezipaměť snímků pro všechny projekty (`tools/cache.py`, #60) – stažený snímek se znovu nestahuje.
+- `hlavicky.py`: přehled hlaviček snímků jedním obrázkem – rychle najde rok nebo obec ve svazku (#12).
+- `--vylepsit` u `overit.py`, `vyrez.py` a `hlavicky.py` pro vybledlé snímky (#37).
+- `kramerius.py text <PID>`: celý OCR text veřejné stránky (#21, #30).
+- `zapis.py smazat <klíč>`: odebere omylem zapsaný zápis i s výřezy (#54).
+- `trebon.py strom` a `obce`: strom archivu a obce fondu.
+- ARON: odkazy vedou na konkrétní snímek, ne na první stránku knihy; `aron_img.py odkazy [--opravit]` (#22, #18).
+- Podpora Codexu, OMP a Cursoru (#42, #43, #52); pokyny projektu jsou nově v `AGENTS.md`, `CLAUDE.md` na ně jen
+  odkazuje. Aktualizace starého projektu je převede sama (záloha v `pracovni/`).
+- Návody k převzetí rodinného GEDCOM stromu a předání projektu (#46), portály vrchnosti, zemské desky a vodní mlýny (#62).
+
+**Opravy**
+- Předek v rodokmenu dvakrát (sňatek příbuzných): export už nespadne a vějíř ho ukáže na obou místech i s předky (#31, #50).
+- Přihlášení na web funguje i přes http bez https (záložní SHA-256, #61); příběh rodu ukazuje jen své dokumenty (#61).
+- „Manžel/Manželka“ jen u doloženého sňatku, jinak „Partner/Partnerka“; zajímavosti na úvodu bez prázdných kartiček (#30).
+- `export_web.py` maže obrázky smazaných zápisů, dva rody stejného jména se nepřepíšou, kolize adres osob (#25).
+- `kontrola.py`: méně falešných poplachů (Novákovi, rodinné doklady), hlídá kruhy v SAME, neexistující data
+  a prázdný `mista.json` (#37, #25).
+- `overit.py`: zmenšení nejvýš na 1900 × 1900 px a překryv polovin 8 %; `aron_img.py` vyřízne přesně požadované místo (#37).
+- `policie_prihlasky.py` projde všechny strany výsledků (#54); `mza.py` najde curl s HTTP/2 (Windows).
+- `ged_import.py`: export z MyHeritage (CONC, HTML entity, anglická místa), kruh ve stromu, adopce (#25, #30).
+- Skládání dlaždic ze SOA Třeboň (#48), brzda na Windows (#53), uvozovky v hlavičce skillu (#26, #59), nginx (#56).
+- Web vyžaduje Node.js 22.19 nebo novější a instaluje se přes `npm ci`.
+
+**Návody**
+- Nový `reference/pomocnici.md`: zadání pomocníka s kontrolním zápisem, co na každém snímku přečetl (#34).
+- Ověřování: „zápis doložen × vazba doložena“, nezávislé druhé čtení, Genealogical Proof Standard (#34, #27).
+- Další prameny: sčítání lidu 1921 a civilní matriky 1939–45 (SOA Litoměřice), GenTeam, žádost na matriku
+  datovou schránkou (#35); vojenské prameny – Verlustlisten, VÚA–VHA, legionáři, pomníky padlých (#40).
+- Rodinná kronika k tisku a sépiová kresba z fotek (#16); desítky poznatků z praxe k archivům a nasazení webu
+  (Netlify, Cloudflare, Docker) (#30, #50, #54, #61, #63).
+
+Nepřevzato: #20 (koliduje se stromem z #13), #28 (pomocné skilly v rozporu s pravidly šetrnosti k archivům;
+převzaty jen dva obecné poznatky), #17 (skrytá osoba – jméno by prosakovalo přepisy a vyhledáváním),
+#32, #33, #36 (kód nebyl dodán), #14.
+
 ## 0.6.0 – 2. 11. 2026
 
 Brzda proti zablokování archivem.
