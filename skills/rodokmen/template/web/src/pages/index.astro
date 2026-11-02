@@ -8,7 +8,8 @@ import site from '../data/site.json';
 import { frontmatter as pribeh } from '../generated/pribeh.md';
 const lineList = Object.values(lines).sort((a, b) => a.k - b.k);
 const uvod = config.uvod ?? {};
-const cards = config.zajimavosti_na_uvodu ?? [];
+// {nadpis, text}; holý řetězec (častá chyba ve web.json) se ukáže jako text bez nadpisu, ne jako prázdná kartička
+const cards = (config.zajimavosti_na_uvodu ?? []).map((c) => (typeof c === 'string' ? { nadpis: '', text: c } : c)).filter((c) => c && (c.nadpis || c.text));
 const defaultStoryButton = config.maVicePribehu ? 'Prohlédnout příběhy' : 'Přečíst příběh';
 ---
 <Base title="" wide>
@@ -50,7 +51,7 @@ const defaultStoryButton = config.maVicePribehu ? 'Prohlédnout příběhy' : 'P
       <h2>Zajímavosti</h2>
       <div class="grid2">
         {cards.map((c) => (
-          <a class="card card-link" href="/zajimavosti/"><h3>{c.nadpis}</h3><p class="small muted">{c.text}</p></a>
+          <a class="card card-link" href="/zajimavosti/">{c.nadpis && <h3>{c.nadpis}</h3>}{c.text && <p class={c.nadpis ? 'small muted' : undefined}>{c.text}</p>}</a>
         ))}
       </div>
       <p><a href="/zajimavosti/">Všechny zajímavosti →</a></p>

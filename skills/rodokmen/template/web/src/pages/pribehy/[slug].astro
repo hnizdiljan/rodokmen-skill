@@ -17,6 +17,8 @@ export async function getStaticPaths() {
 
 const { Content, frontmatter } = Astro.props;
 const line = lineByK[frontmatter.rod];
+// dokumenty jen k tomuto příběhu (export_web.py: dokumenty.json → pribeh, jinak podle rodu)
+const storyDocs = docs.filter((d) => d.stories?.includes(Astro.params.slug));
 ---
 <Base title={frontmatter.title}>
   <p class="crumbs">
@@ -32,11 +34,11 @@ const line = lineByK[frontmatter.rod];
     <a class="btn" href="/zajimavosti/">Zajímavosti z rodokmenu →</a>
   </div>
 
-  {docs.length > 0 && (
+  {storyDocs.length > 0 && (
     <>
       <h2>Rodinné dokumenty a fotografie</h2>
       <div class="docs">
-        {docs.map((d) => (
+        {storyDocs.map((d) => (
           <figure><a href={`/img/${d.img}.jpg`} target="_blank" rel="noopener"><img src={`/img/${d.img}.jpg`} alt={d.caption} loading="lazy" /></a><figcaption>{d.caption}</figcaption></figure>
         ))}
       </div>

@@ -166,6 +166,7 @@ def placeholder(p):
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # -I nepřidává složku skriptu
 from obraz import najdi_magick   # společný hledač ImageMagicku (tools/obraz.py)
 from osobnosti import zarad as osobnost   # stránka „Osobnosti“: kategorie podle faktů (tools/osobnosti.py)
+from implex import zrcadla   # předek v rodokmenu vícekrát (SAME): kdo stojí na místě aliasu a nad ním
 
 
 def magick_bin():
@@ -266,10 +267,14 @@ def main():
         used.add(s)
         slugs[k] = s
     for a, c in SAME.items():
-        slugs[a] = slugs[c]
+        if c in slugs:   # chybné SAME (hlavní číslo neexistuje) hlásí kontrola.py
+            slugs[a] = slugs[c]
+    # alias i předci nad ním (zrcadlení hlavního čísla) – pro rodokmen na úvodu a rody
+    mirror = {s: slugs[c] for s, c in zrcadla(P, SAME).items() if c in slugs}
     aliases_of = {}
     for a, c in SAME.items():
-        aliases_of.setdefault(c, []).append(a)
+        if a in slugs:
+            aliases_of.setdefault(c, []).append(a)
 
     def line_of(k):
         g = gen(k)
@@ -300,7 +305,8 @@ def main():
         )
         if aliases_of.get(k):
             for a in aliases_of[k]:
-                people[slugs[k]]["records"] = list(dict.fromkeys(people[slugs[k]]["records"] + [r for r in P[a].get("r", []) if r in recs]))
+                # alias nemusí mít v P vlastní položku (data.md ji dovoluje, nevyžaduje)
+                people[slugs[k]]["records"] = list(dict.fromkeys(people[slugs[k]]["records"] + [r for r in P.get(a, {}).get("r", []) if r in recs]))
             people[slugs[k]]["facts"] = [f for f in people[slugs[k]]["facts"] if not f.startswith("TÁŽ OSOBA")]
 
     # RODINA: osoby mimo přímou linii pro stromový graf. Odkazy: "k12" = přímý předek, "o:zkratka" = osoba z RODINA,
@@ -350,18 +356,22 @@ def main():
         frec = P.get(f, {}).get("r", []) + P.get(m, {}).get("r", [])
         child_rec = [r for r in P[k].get("r", []) if r in recs and recs[r]["kind"] == "N"]
         rlist = [r for r in dict.fromkeys(frec) if r in recs and recs[r]["kind"] == "O"] + child_rec
+        # sňatek doložený (× nebo „provd.“ v údajích, oddací zápis) – web pak píše „manželka/manžel“, jinak „partnerka/partner“
+        married = bool(marriage) or any(recs[r]["kind"] == "O" for r in rlist) or any(
+            re.match(r"\s*(provd|oddán|sňatek)", x, re.I) for x in P.get(f, {}).get("f", []) + P.get(m, {}).get("f", []))
         if fid in families:   # stejný pár potkán dvakrát (předek v rodokmenu vícekrát) – jedna rodina, víc dětí
             fam = families[fid]
             fam["children"].append(slugs[k])
             fam["records"] = list(dict.fromkeys(fam["records"] + rlist))
+            fam["married"] = fam["married"] or married
             fam["side"] += people[slugs[k]]["side"]
         else:
             families[fid] = dict(id=fid, father=fs, mother=ms, fatherUnknown=f in P and placeholder(P[f]),
-                                 child=slugs[k], children=[slugs[k]], marriage=marriage, records=rlist,
+                                 child=slugs[k], children=[slugs[k]], marriage=marriage, married=married, records=rlist,
                                  line=line_of(f) if f in P else line_of(m), gen=gen(f), side=list(people[slugs[k]]["side"]))
         people[slugs[k]]["family"] = fid
         for x in (fs, ms):
-            if x:
+            if x and not people[x]["ownFamily"]:   # předek vícekrát: vlastní rodina je ta u hlavního čísla
                 people[x]["ownFamily"] = fid
 
     for p in people.values():   # stránka „Osobnosti“ (ruční vyz má na webu přednost)
@@ -387,8 +397,10 @@ def main():
         if k not in LINE_COLORS:
             continue
         members = [(p["k"], p) for p in people.values() if p["line"] == k]
-        members += [(a["k"], p) for p in people.values() for a in p["also"] if a["line"] == k]
+        members += [(s, people[slug]) for s, slug in mirror.items() if line_of(s) == k]   # předek v rodu podruhé
         members.sort(key=lambda x: x[0])
+        seen = set()   # každý jen jednou (na nejbližším místě), i když je v rodu dvakrát
+        members = [(kk, p) for kk, p in members if not (p["slug"] in seen or seen.add(p["slug"]))]
         lines[slugify(name)] = dict(k=k, slug=slugify(name), name=name, desc=desc, color=LINE_COLORS[k],
                                     root=slugs.get(k), people=[p["slug"] for _, p in members],
                                     gens={p["slug"]: gen(kk) for kk, p in members})
@@ -461,10 +473,31 @@ def main():
     public_cfg["maPribeh"] = has_story
     public_cfg["maVicePribehu"] = multi_stories
     public_cfg["pribehy"] = [story["slug"] for story in stories] if multi_stories else []
-    site = dict(config=public_cfg, places=places, root=slugs[1], aliases={a: slugs[a] for a in SAME}, people=people,
+
+    def doc_stories(d):
+        """Na stránkách kterých příběhů se dokument ukáže (slug; "" = jediný příběh z pribeh.md).
+        "pribeh": true = u všech, "slug" / ["slug", …] = jen u nich, false = u žádného. Bez klíče: u příběhu
+        s rodem, když se dokument týká někoho z toho rodu; jediný příběh bez rodu ukáže všechny (jako dřív)."""
+        v = d.get("pribeh")
+        if v is True:
+            return [st["slug"] for st in stories]
+        if v is False:
+            return []
+        if v is not None:
+            wanted = [v] if isinstance(v, str) else v if isinstance(v, list) else []
+            for x in wanted:
+                if x not in {st["slug"] for st in stories}:
+                    print(f"POZOR: dokumenty.json – {d.get('img')}: příběh {x!r} neexistuje (pribeh má být true, false nebo slug z data/pribehy/)")
+            return [st["slug"] for st in stories if st["slug"] in wanted]
+        ks = d.get("osoby", [])
+        doc_lines = {line_of(x) for k in ks for c in [SAME.get(k, k)] for x in [c] + aliases_of.get(c, [])} - {None}
+        return [st["slug"] for st in stories if (st["rod"] in doc_lines if st["rod"] is not None else len(stories) == 1)]
+
+    site = dict(config=public_cfg, places=places, root=slugs[1], aliases=mirror, people=people,
                 families=families, others=others, records=records, lines=lines,
                 issues=[dict(title=i, text="") if isinstance(i, str) else dict(title=i[0], text=i[1]) for i in ISSUES], stats=stats, hypotheses=hypotheses,
-                docs=[dict(img=d["img"], caption=d["popis"], people=[slugs[k] for k in d.get("osoby", []) if k in slugs])
+                docs=[dict(img=d["img"], caption=d["popis"], people=[slugs[k] for k in d.get("osoby", []) if k in slugs],
+                           stories=doc_stories(d))
                       for d in docs_cfg if os.path.exists(os.path.join(VYREZY, d["img"] + ".jpg"))])
 
     write(os.path.join(WEB, "src", "data", "site.json"), json.dumps(site, ensure_ascii=False, indent=1))

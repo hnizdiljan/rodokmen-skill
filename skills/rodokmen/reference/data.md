@@ -51,7 +51,9 @@ P = {
 - `ISSUES` – dvojice `("Otázka", "Vyřešeno: … / Hypotéza: … / Otevřené: …")` → stránka „Co hledáme“ (vyřešené se skryjí).
   Jde na web – nepiš sem citlivé věci (příčiny úmrtí, rodinné spory) bez souhlasu.
 - `HYPOTEZY` – `dict(rod=8, nadpis="…", text="…", polozky=[("jméno", "text")], zaznamy=[klíče])` → stránka rodu.
-- `SAME = {350: 140}` – předek, který je v rodokmenu dvakrát (alias → hlavní číslo; alias v `P` může mít `f=["TÁŽ OSOBA jako 140"]`).
+- `SAME = {350: 140}` – předek, který je v rodokmenu dvakrát (alias → hlavní číslo; alias v `P` může mít `f=["TÁŽ OSOBA jako 140"]`,
+  ale nemusí). Předky nad aliasem (700, 701 …) znovu nezapisuj – vějíř, rodokmen na úvodu i rody je ukážou na obou místech
+  podle hlavního čísla (`tools/implex.py`).
 
 ## `zaznamy.json` – zápisy
 ```json
@@ -105,6 +107,10 @@ podle stabilního katastru). Export z nich udělá stránku `/domy/` a propojí 
 ## `dokumenty.json` – rodinné fotky a dokumenty na webu
 `[{"img": "foto_svatba_1919", "popis": "Svatba Jana a Josefy, Holice 1919.", "osoby": [8, 9]}]`
 Obrázek ulož přes `vyrez.py dokumenty/<sken>.jpg foto_svatba_1919` (vznikne `vyrezy/` i `zdroje/`).
+Na stránce osoby se dokument ukáže u každé osoby z `osoby`. Na stránce příběhu podle klíče `pribeh`: `true` = u všech
+příběhů, `"slug"` nebo `["slug", …]` = jen u těchto příběhů z `data/pribehy/`, `false` = u žádného. Bez klíče: u příběhu
+s rodem (`rod` ve frontmatter, u `pribeh.md` v `web.json` → `pribeh.rod`), když se dokument týká někoho z toho rodu;
+jediný příběh bez rodu ukáže všechny dokumenty.
 
 ## `web.json` – nastavení webu
 Viz `web.md`.
