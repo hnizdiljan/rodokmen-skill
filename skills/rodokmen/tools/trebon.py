@@ -10,11 +10,18 @@ Použití (z kořene projektu):
                                             (ne každá kniha ho má; prázdný výsledek = rejstřík chybí, ne „osoba tam není“)
   trebon.py snimek <id_knihy> <snímek> <vystup.jpg> [nahled]
                                          -> stáhne snímek v plném rozlišení (slepí dlaždice); "nahled" = 1/4 rozlišení
-  trebon.py svazek <id_knihy>            -> zapíše svazek do data/svazky.json (klíč trebon_<id_knihy>)
+  trebon.py svazek <id_knihy>            -> zapíše svazek do data/svazky.json (klíč trebon_<id_knihy>; popis = obce svazku)
+  trebon.py strom [<kód> ["Obec"]]       -> strom archiválií (co `svazky` neukáže): 1U urbáře, 1q pozemkové knihy,
+                                            1s sčítání lidu, 1k kroniky, 1t vrchnostenská registra (soupisy poddaných);
+                                            vypíše podsložky (kód | název) a svazky (id_knihy | popis). Bez kódu kořen.
+                                            S "Obec" jen svazky, které obec obsahují (1 dotaz na svazek – pomalé, brzda)
+  trebon.py obce <id_knihy>              -> obce, které svazek obsahuje
+Snímky svazků ze stromu stahuje `snimek` stejně jako matriky. Za koncem knihy portál vrací pořád poslední snímek –
+nástroj na to upozorní, když je snímek stejný jako předchozí (z cache).
 Trvalý odkaz na snímek: https://digi.ceskearchivy.cz/<id_knihy>/<snímek>
 Ber ohled na server: stahuj jen snímky, které čteš. Stažené snímky jsou ve sdílené cache (tools/cache.py).
 """
-import glob, html, json, os, re, shutil, subprocess, sys, tempfile, unicodedata, urllib.parse, urllib.request, http.cookiejar
+import glob, hashlib, html, json, os, re, shutil, subprocess, sys, tempfile, unicodedata, urllib.parse, urllib.request, http.cookiejar
 import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import slusne  # noqa: E402 – brzda proti zablokování archivem (společný limit dotazů, tools/slusne.py)
 import cache  # noqa: E402 – sdílená cache stažených snímků (tools/cache.py)
 for _s in (sys.stdout, sys.stderr):   # UTF-8 výstup i na Windows bez -X utf8 (cp1250 neumí třeba „→“)
@@ -112,6 +119,20 @@ def snimek(bid, n, out, nahled=False):
     cache.soubor(klic, out, lambda cil: stahni(bid, n, cil, nahled, MAGICK, ref))
     r = subprocess.run([MAGICK, out + "[0]", "-format", "%wx%h", "info:"], capture_output=True, text=True)
     print(out, r.stdout, "odkaz:", ref)
+    if za_koncem(bid, int(n), nahled):
+        print(f"POZOR: snímek {n} je stejný jako snímek {int(n) - 1} – nejspíš jsi za koncem knihy (portál pak vrací "
+              "pořád poslední snímek, zadní desku); poslední skutečný snímek je dřív.")
+
+
+def za_koncem(bid, n, nahled=False):
+    """Snímek n je bajtově stejný jako n-1 v cache (portál za koncem knihy opakuje poslední snímek)."""
+    if n < 2:
+        return False
+    a, b = (cache.cesta(f"trebon/{bid}/sn{k:04d}{'-nahled' if nahled else ''}.jpg") for k in (n - 1, n))
+    if not (os.path.exists(a) and os.path.exists(b)):
+        return False
+    h = lambda p: hashlib.md5(open(p, "rb").read()).hexdigest()
+    return h(a) == h(b)
 
 
 def stahni(bid, n, out, nahled, MAGICK, ref):
@@ -153,6 +174,50 @@ def stahni(bid, n, out, nahled, MAGICK, ref):
         shutil.rmtree(tmp)
 
 
+def strom(kod="1", obec=None):
+    """Strom archiválií portálu (urbáře 1U, pozemkové knihy 1q, sčítání 1s, kroniky 1k, vrchnostenská registra 1t).
+    Vypíše podsložky (kód | název) a svazky (id | popis); s obcí jen svazky, které ji obsahují."""
+    if not re.fullmatch(r"\w{1,20}", kod):
+        sys.exit(f"Kód stromu je třeba 1q nebo 1U (z výpisu `strom`), ne „{kod}“.")
+    page, _ = get(f"/tree.php?doctree={urllib.parse.quote(kod)}&menu=1")
+    slozky = re.findall(r"<a[^>]*doctree=(\w+)[^>]*>(.*?)</a>", page, re.S)   # podsložky jako odkazy
+    # kořen stromu má složky jako <div onclick='ope("","tree.php?menu=0&doctree=1U")'>…Urbariums</div>
+    slozky += re.findall(r"doctree=(\w+)\"\)'>(?:<div[^>]*></div>)?(?:<i[^>]*></i>)?([^<]*)", page)
+    vypsane = set()
+    for k, nazev in slozky:
+        if k.startswith(kod) and k != kod and k not in vypsane and text(nazev):
+            vypsane.add(k)
+            print(k, "|", re.sub(r"\s+", " ", text(nazev)))
+    radky = []
+    for bid, row in re.findall(r"id='(\d+)'[^>]*>(.*?)</t(?:r|body)>", page, re.S):
+        cells = [re.sub(r"\s+", " ", text(c)) for c in re.findall(r"<td[^>]*>(.*?)</td>", row, re.S)]
+        cells = [c for c in cells if c and c != "List of localities"]
+        if cells:
+            radky.append((bid, cells))
+    if obec and radky:
+        print(f"(hledám obec ve {len(radky)} svazcích, 1 dotaz na svazek – chvíli to potrvá)", file=sys.stderr)
+    hledana = bez_diakritiky(obec or "")
+    for bid, cells in radky:
+        if obec:
+            o = obce(bid)
+            if hledana not in bez_diakritiky(o):
+                continue
+            cells = cells + ["obce: " + o[:300]]
+        print(bid, "|", " | ".join(cells))
+
+
+def bez_diakritiky(s):
+    return "".join(c for c in unicodedata.normalize("NFKD", s.lower()) if not unicodedata.combining(c))
+
+
+def obce(bid):
+    if not str(bid).isdigit():
+        sys.exit(f"id knihy je číslo, ne „{bid}“.")
+    t, _ = get(f"/pages/ajaxobec4.php?id={bid}")
+    casti = [re.sub(r"\s+", " ", c).strip() for c in re.split(r"[,|]", text(t))]   # portál odděluje „,,,,“ a „|“
+    return ", ".join(dict.fromkeys(c for c in casti if c))
+
+
 def svazek(bid):
     page, _ = get(f"/{bid}/1")
     t = re.search(r"document\.title=\"([^\"]*)\"", page) or re.search(r"<title>([^<]*)", page)
@@ -161,8 +226,9 @@ def svazek(bid):
         nazev = f"kniha {bid} (název doplň ručně)"
     path = os.path.join(ROOT, "data", "svazky.json")
     d = json.load(open(path, encoding="utf-8")) if os.path.exists(path) else {}
-    d[f"trebon_{bid}"] = {"archiv": "SOA Třeboň – Sbírka matrik", "portal": "digi.ceskearchivy.cz",
-                          "svazek": nazev, "popis": "", "url": f"{BASE}/{bid}"}
+    # nejen matriky: i urbáře, pozemkové knihy a sčítání ze `strom` (#63) – proto obecně „SOA Třeboň“ a popis = obce
+    d[f"trebon_{bid}"] = {"archiv": "SOA Třeboň", "portal": "digi.ceskearchivy.cz",
+                          "svazek": nazev, "popis": obce(bid)[:300], "url": f"{BASE}/{bid}"}
     json.dump(d, open(path, "w", encoding="utf-8", newline="\n"), ensure_ascii=False, indent=1)
     print(f"trebon_{bid} -> {nazev}")
 
@@ -182,5 +248,9 @@ if __name__ == "__main__":
         snimek(a[1], a[2], a[3], len(a) > 4)
     elif a[0] == "svazek":
         svazek(a[1])
+    elif a[0] == "strom":
+        strom(a[1] if len(a) > 1 else "1", a[2] if len(a) > 2 else None)
+    elif a[0] == "obce":
+        print(obce(a[1]))
     else:
         sys.exit(__doc__)
