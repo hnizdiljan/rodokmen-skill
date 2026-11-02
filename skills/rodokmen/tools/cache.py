@@ -4,7 +4,8 @@
 Příště ho nástroj vezme z disku bez dotazu na archiv (méně zátěže archivu, menší riziko zablokování, rychlejší
 práce). Cache je společná pro všechny projekty na počítači: ~/.cache/rodokmen_snimky/ (Windows
 %LOCALAPPDATA%\\rodokmen_snimky), jinou složku nastavíš proměnnou RODOKMEN_SNIMKY.
-Používají ji aron_img.py, ebadatelna.py, trebon.py, portafontium.py, soal_zoomify.py a ahmp_scan.py.
+Používají ji aron_img.py, ebadatelna.py, trebon.py, portafontium.py, soal_zoomify.py (a přes něj litomerice.py
+a vademecum.py), ahmp_scan.py a mza.py.
 Výřezy (x0,y0,x1,y1) se stahují vždy znovu, jsou malé. Vadný snímek v cache smaž a stáhni znovu (cesta se vypíše).
 Celou cache lze kdykoli smazat, nástroje si snímky stáhnou znovu.
 """

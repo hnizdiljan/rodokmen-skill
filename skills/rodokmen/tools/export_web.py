@@ -163,8 +163,13 @@ def placeholder(p):
     return p["n"].startswith(("otec neuveden", "matka neuvedena")) or p["n"] in ("", "?")
 
 
-def magick_bin():   # ImageMagick 7 (magick), jinak 6 (convert) – ten ale ne na Windows, tam je convert.exe jiný program
-    return shutil.which("magick") or (os.name != "nt" and shutil.which("convert")) or None
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # -I nepřidává složku skriptu
+from obraz import najdi_magick   # společný hledač ImageMagicku (tools/obraz.py)
+from osobnosti import zarad as osobnost   # stránka „Osobnosti“: kategorie podle faktů (tools/osobnosti.py)
+
+
+def magick_bin():
+    return najdi_magick()
 
 
 def size(path):
@@ -281,7 +286,7 @@ def main():
         people[slugs[k]] = dict(
             k=k, slug=slugs[k], name=puvodni(p), modern=p["n"], zap=p.get("zap", []), y=p.get("y", ""), years=years(p.get("y")), st=p.get("st", "unk"),
             status=STATUS.get(p.get("st"), ""), gen=gen(k), sex="M" if k == 1 and p.get("sex", "M") == "M" or k > 1 and k % 2 == 0 else "F",
-            rel=relation(k), line=line_of(k), facts=p.get("f", []), note=p.get("note", ""), records=[r for r in p.get("r", []) if r in recs],
+            rel=relation(k), line=line_of(k), facts=p.get("f", []), note=p.get("note", ""), vyz=p.get("vyz", ""), records=[r for r in p.get("r", []) if r in recs],
             father=slugs.get(2 * k), mother=slugs.get(2 * k + 1),
             fatherUnknown=(2 * k in P and placeholder(P[2 * k])), motherUnknown=(2 * k + 1 in P and placeholder(P[2 * k + 1])),
             child=slugs.get(k // 2) if k > 1 else None, spouse=slugs.get(k ^ 1) if k > 1 else None,
@@ -359,6 +364,8 @@ def main():
             if x:
                 people[x]["ownFamily"] = fid
 
+    for p in people.values():   # stránka „Osobnosti“ (ruční vyz má na webu přednost)
+        p["osobnost"] = None if p["vyz"] else osobnost(p["facts"])
     refs = {}
     for s, p in people.items():
         for r in p["records"] + [r for e in p["side"] for r in e["records"]]:

@@ -144,8 +144,12 @@ Základní smyčka pro každou osobu:
    zapiš do `data/archivni_dotazy.md` a jdi dál.
 3. **Najdi svazek**: podle obce → farnost → archiv. ARON: `python3 -I tools/aron_search.py "Obec"`, SOA Třeboň:
    `tools/trebon.py`, SOA Plzeň: `tools/portafontium.py`, SOA Praha (střední Čechy): `tools/ebadatelna.py`,
-   Praha: `tools/ahmp_search.sh`; ostatní a Rakousko viz `reference/portaly.md`. Sňatek hledej nejdřív ve farnosti nevěsty.
+   MZA Brno (jižní Morava): `tools/mza.py`, židovské matriky (Národní archiv): `tools/vademecum.py`,
+   SOA Litoměřice: `tools/litomerice.py`, Brno – osobnosti, ulice, hroby: `tools/brno_encyklopedie.py`, Rakousko/Vídeň: `tools/matricula.py` (seznamy) + `tools/matricula_snimek.js` (snímek přes Playwright), vězni a oběti 2. sv. války: `tools/vezni.py`,
+   `tools/arolsen.py`, `tools/mauthausen.py`, `tools/obeti.py`, Praha: `tools/ahmp_search.sh`; ostatní a Rakousko viz `reference/portaly.md`. Sňatek hledej nejdřív ve farnosti nevěsty.
    Je-li ke svazku index (rejstřík), začni jím. Starší matriky (před ~1784) bývají ve faře sousedního města.
+   Nástroj najednou přestal fungovat? Portál se nejspíš změnil: `python3 -I tools/smoke_test.py <nástroj>` řekne, jestli je to výpadek
+   (NEDOSTUPNÉ), nebo změna stránky (CHYBA) – pak to zapiš do `poznamky_pro_skill.md` a řiď se obecným postupem v `portaly.md`.
 4. **Stáhni snímek** do `pracovni/<svazek>/` a nech ho tam – před dalším stažením se podívej, jestli ho už nemáš
    (šetří čas, archiv i CAPTCHY). Najdi zápis, **přečti ho sám ze snímku** (přiblíž si výřez v plném rozlišení).
 5. **Zapiš nález** (vždy všech 6 kroků, i když to zdržuje):
@@ -234,6 +238,9 @@ Podrobně `reference/pribehy.md`. Tohle je to, co rodina na webu čte nejradši,
 - **Zajímavosti** („fun facts“) sbírej **průběžně**: co najdeš při čtení, hned zapiš do `data/zajimavosti.md`
   a řekni uživateli. Po každém kole spusť `python3 -I tools/napady.py`. Najde v datech svatby krátce před porodem,
   rod v jednom domě, sňatky příbuzných, dlouhověkost, epidemie… Ověř a napiš jako krátké příběhy.
+- **Osobnosti:** po kole spusť i `python3 -I tools/osobnosti.py` – vybere předky s výjimečným povoláním nebo postavením
+  (vzdělanci, duchovní, umělci, funkcionáři, vojáci, sportovci, podnikatelé) a ke každé skupině poradí, kde hledat víc.
+  Potvrzené označ v `osoby.py` polem `vyz="krátký popis"`; web je ukáže nahoře na stránce „Osobnosti“.
 - **Příběhy rodů:** jakmile má hlavní rod ~5 doložených generací, nabídni příběh. Koncept napiš **do chatu** ke schválení,
   pak ho ulož do `data/pribeh.md`. Pro více příběhů používej `data/pribehy/<slug>.md`; viz `reference/pribehy.md`.
   Soukromí zkontroluj ve všech příbězích, ne pouze v hlavním.
