@@ -16,6 +16,8 @@ const recs = [...new Set(p.records)].filter((r) => records[r]).sort((a, b) => da
 const path = [...p.path].reverse().filter(Boolean);
 const domById = Object.fromEntries(domyData.domy.map((d) => [d.id, d]));
 const myDomy = (domyData.osoby[p.slug] || []).map((id) => domById[id]).filter(Boolean);
+// „Manželka/Manžel“ jen u doloženého sňatku (export_web.py: married), jinak neutrálně „Partnerka/Partner“
+const married = !!(p.ownFamily && families[p.ownFamily]?.married);
 ---
 <Base title={p.name} description={`${p.name} ${p.years} – ${p.rel}`}>
   <div class="crumbs">
@@ -50,7 +52,7 @@ const myDomy = (domyData.osoby[p.slug] || []).map((id) => domById[id]).filter(Bo
     </div>
     {p.child && (
       <div class="card">
-        <h3>{p.sex === 'M' ? 'Manželka' : 'Manžel'} a dítě v linii</h3>
+        <h3>{married ? (p.sex === 'M' ? 'Manželka' : 'Manžel') : (p.sex === 'M' ? 'Partnerka' : 'Partner')} a dítě v linii</h3>
         <p>{p.spouse ? <PersonLink slug={p.spouse} /> : <span class="muted">{p.sex === 'F' && people[p.child]?.fatherUnknown ? 'otec dítěte neuveden' : 'neznámý partner'}</span>}<br />
           {p.children.length > 1 ? 'Děti' : 'Dítě'}: {p.children.map((c, i) => <>{i > 0 && ', '}<PersonLink slug={c} /></>)}</p>
         {p.ownFamily && <p class="small"><a href={href.family(p.ownFamily)}>Jejich rodina →</a></p>}

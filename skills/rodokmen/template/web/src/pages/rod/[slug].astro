@@ -2,7 +2,7 @@
 import Base from '../../layouts/Base.astro';
 import PersonLink from '../../components/PersonLink.astro';
 import Record from '../../components/Record.astro';
-import { lines, people, hypotheses, href, genName, statusClass, lineByK } from '../../lib/data.js';
+import { lines, people, families, hypotheses, href, genName, statusClass, lineByK } from '../../lib/data.js';
 
 export function getStaticPaths() {
   return Object.keys(lines).map((slug) => ({ params: { slug } }));
@@ -11,6 +11,9 @@ const l = lines[Astro.params.slug];
 const members = l.people.map((s) => ({ ...people[s], gen: l.gens[s] }));
 const gens = [...new Set(members.map((p) => p.gen))].sort((a, b) => a - b);
 const partnerLine = lineByK[l.k ^ 1];
+// „manželka/manžel“ jen u doloženého sňatku, jinak neutrálně
+const married = !!families[people[l.root].ownFamily]?.married;
+const spouseWord = people[l.root].sex === 'M' ? (married ? ' Jeho manželka ' : ' Jeho partnerka ') : (married ? ' Její manžel ' : ' Její partner ');
 ---
 <Base title={`Rod ${l.name}`}>
   <p class="crumbs"><a href="/rody/">Rody</a></p>
@@ -18,7 +21,7 @@ const partnerLine = lineByK[l.k ^ 1];
   <p class="lead">{l.desc}</p>
   <p>Rod začíná u <PersonLink slug={l.root} /> ({people[l.root].rel}).
     {partnerLine && people[l.root].spouse && (
-      <>{people[l.root].sex === 'M' ? ' Jeho manželka ' : ' Její manžel '}<PersonLink slug={people[l.root].spouse} /> je výchozí osobou
+      <>{spouseWord}<PersonLink slug={people[l.root].spouse} /> je výchozí osobou
         sousedního rodu <a href={href.line(partnerLine.slug)}>{partnerLine.name}</a>; jejich {people[people[l.root].child].sex === 'M' ? 'syn' : 'dcera'} <PersonLink slug={people[l.root].child} />.</>
     )}
   </p>

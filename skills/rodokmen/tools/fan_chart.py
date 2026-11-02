@@ -20,7 +20,9 @@ CHROME = next((c for c in ("/Applications/Google Chrome.app/Contents/MacOS/Googl
 
 ns = {}
 exec(open(os.path.join(ROOT, "data", "osoby.py"), encoding="utf-8").read(), ns)
-P, LINES = ns["P"], ns.get("LINES", {})
+P, LINES, SAME = ns["P"], ns.get("LINES", {}), ns.get("SAME", {})
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # -I nepřidává složku skriptu
+from implex import zrcadla
 WEBCFG = json.load(open(os.path.join(ROOT, "data", "web.json"), encoding="utf-8")) if os.path.exists(os.path.join(ROOT, "data", "web.json")) else {}
 
 W, H = (4520, 4520) if WEB else (4600, 5650)
@@ -32,6 +34,9 @@ BASE = {8: "#EFB45F", 9: "#F09A78", 10: "#E58AA6", 11: "#B99AE0",
 LIGHT = {3: 0.0, 4: 0.18, 5: 0.32, 6: 0.44, 7: 0.55, 8: 0.64, 9: 0.72, 10: 0.78}
 SIDE_COL = {0: "#E9DFCF", 1: "#D6E2EC"}          # father / mother half, generations 1–2
 EMPTY, FONT = "#ECE8E0", "Helvetica Neue, Helvetica, Arial, sans-serif"
+# předek v rodokmenu vícekrát (SAME): na místě aliasu a nad ním se kreslí titíž předci jako u hlavního čísla
+MIRROR = zrcadla(P, SAME, len(RINGS) - 1)
+SLOT = {**{k: k for k in P}, **MIRROR}   # místo ve vějíři → číslo osoby v P, jejíž údaje tam patří
 MINF = {5: 15, 6: 13, 7: 11, 8: 9.5, 9: 8.5, 10: 7.5}
 MAXF = {5: 26, 6: 22, 7: 18, 8: 14, 9: 11, 10: 9}
 
@@ -87,7 +92,7 @@ def angles(k):
 
 
 def fill(k):
-    g = gen(k); p = P.get(k)
+    g = gen(k); p = P.get(SLOT.get(k))
     if p is None or p.get("st") == "unk":
         return EMPTY
     if g == 0:
@@ -103,8 +108,8 @@ def fit(text, avail, fmax, fmin):
 
 
 paths, defs, texts, links = [], [], [], []
-slots = sorted({k for k in P if gen(k) < len(RINGS)} |   # vějíř má 11 prstenců (generace 0–10); starší předky vynech
-               {c for k in P for c in (2 * k, 2 * k + 1) if gen(c) <= 10 and k in P})
+slots = sorted({k for k in SLOT if gen(k) < len(RINGS)} |   # vějíř má 11 prstenců (generace 0–10); starší předky vynech
+               {c for k in SLOT for c in (2 * k, 2 * k + 1) if gen(c) <= 10})
 for k in slots:
     g = gen(k)
     r0, r1 = RINGS[g]
@@ -113,14 +118,17 @@ for k in slots:
         paths.append(f'<circle cx="{CX}" cy="{CY}" r="{r1}" fill="{fill(k)}" stroke="#fff" stroke-width="3"/>')
     else:
         paths.append(f'<path d="{sector(r0, r1, a0, a1)}" fill="{fill(k)}" stroke="#FBF8F2" stroke-width="{3 if g < 6 else 1.6}"/>')
-    p = P.get(k)
+    src = SLOT.get(k)
+    p = P.get(src)
     if not p:
         continue
     name = " / ".join(p["zap"]) if WEBCFG.get("puvodni_jmena") and p.get("zap") else p["n"]
     yrs, st = years(p.get("y")), p.get("st")
-    if k in HREFS:
+    href = HREFS.get(k) or HREFS.get(src)
+    if href:
         shape = (f'<circle cx="{CX}" cy="{CY}" r="{r1}"/>' if g == 0 else f'<path d="{sector(r0, r1, a0, a1)}"/>')
-        links.append(f'<a href="{HREFS[k]}"><title>{html.escape(name)} {html.escape(yrs)}</title>{shape}</a>')
+        again = " (v rodokmenu vícekrát)" if src != k else ""
+        links.append(f'<a href="{href}"><title>{html.escape(name)} {html.escape(yrs)}{again}</title>{shape}</a>')
     unknown = st == "unk"
     style = 'font-style="italic" fill="#8A8278"' if unknown else ('font-style="italic" fill="#2B2620"' if st in ("prob", "mh") else 'fill="#1F1A15"')
     if g == 0:
@@ -182,7 +190,7 @@ for k in slots:
             texts.append(f'<g {tw}><text y="{f1 * 0.35:.1f}" text-anchor="middle" font-size="{f1:.1f}" font-weight="600" {style}>{html.escape(name)}</text></g>')
 
 # statistics
-known = [k for k, p in P.items() if k > 1 and not p["n"].startswith("otec neuveden")]
+known = [k for k, p in P.items() if k > 1 and k not in SAME and not p["n"].startswith("otec neuveden")]
 doc = [k for k in known if P[k].get("st") == "doc"]
 zpath = os.path.join(ROOT, "data", "zaznamy.json")
 recs = json.load(open(zpath, encoding="utf-8")) if os.path.exists(zpath) else []

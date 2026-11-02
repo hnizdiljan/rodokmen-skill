@@ -3,6 +3,8 @@ import Base from '../../layouts/Base.astro';
 import { docs, config, lineByK, href, stories } from '../../lib/data.js';
 import { Content, frontmatter } from '../../generated/pribeh.md';
 const line = lineByK[config.pribeh?.rod ?? 8];
+// dokumenty jen k tomuto příběhu (export_web.py: dokumenty.json → pribeh, jinak podle rodu)
+const storyDocs = docs.filter((d) => (d.stories ?? ['']).includes(''));
 ---
 <Base title={config.maVicePribehu ? 'Rodinné příběhy' : frontmatter.title}>
   {config.maVicePribehu ? (
@@ -32,11 +34,11 @@ const line = lineByK[config.pribeh?.rod ?? 8];
         <a class="btn" href="/zajimavosti/">Zajímavosti z rodokmenu →</a>
       </div>
 
-      {docs.length > 0 && (
+      {storyDocs.length > 0 && (
         <>
           <h2>Rodinné dokumenty a fotografie</h2>
           <div class="docs">
-            {docs.map((d) => (
+            {storyDocs.map((d) => (
               <figure><a href={`/img/${d.img}.jpg`} target="_blank" rel="noopener"><img src={`/img/${d.img}.jpg`} alt={d.caption} loading="lazy" /></a><figcaption>{d.caption}</figcaption></figure>
             ))}
           </div>
