@@ -82,6 +82,8 @@ Adresy u nevyzkoušených portálů ověř při prvním použití (portály se m
   dané vsi (číslo strany je nahoře na snímku). Takové knihy bývají řazené po vsích, ne chronologicky – je-li rejstřík,
   začni jím.
 - `ebadatelna.py snimek <matrikaId> <snímek> pracovni/x.jpg [nahled] [x0,y0,x1,y1]`; `link`, `svazek` (klíč `ebad_<id>`).
+- Při přechodné chybě nástroj vypíše, že čeká na další pokus; konečné nedostupnosti odpovídá chybové hlášení,
+  nikoli prázdný výsledek hledání.
 - **Archiválie** (urbáře, gruntovní a pozemkové knihy velkostatků – most přes 17. století): `a-info <archivalieId>`,
   `a-snimek`, `a-link`, `a-svazek` (klíč `ebad_a_<id>`). Archiválii nástroj nehledá – najdi ji na portálu v prohlížeči;
   id je v adrese `…/pages/ArchivaliePage/archivalieId/<id>`.
@@ -107,6 +109,8 @@ Adresy u nevyzkoušených portálů ověř při prvním použití (portály se m
 
 ## ZA Opava (severní Morava, Slezsko, Olomoucko, Litovelsko) – `tools/soal_zoomify.py`
 - Pozor na hranici: obce na Litovelsku a Olomoucku patří pod **ZA Opava**, ne pod MZA Brno.
+- Katalogová obec sama o sobě nedokládá, že je online příslušná matrika ani že pokrývá hledanou dobu. Ověř konkrétní
+  svazek a jeho popis v portálu.
 - **Bez prohlížeče to nejde.** Badatelna `https://digi.archives.cz/da/` (stará adresa matriky.archives.cz jen přesměruje)
   má ochranu proti robotům – curl ani WebFetch se nedostanou ani na hledání. Potřebuješ připojený prohlížeč (Claude in
   Chrome – uživatel ho připojí příkazem `/chrome` – nebo Playwright); jinak ať knihu najde a snímky uloží uživatel.
