@@ -1,4 +1,4 @@
-# Rodokmen – skill pro Claude Code, Codex a OMP
+# Rodokmen – skill pro Claude Code, Codex, Cursor a OMP
 
 ![Rodokmen z matrik a rodinný web – vějíř předků, mapa a zajímavosti](docs/banner.jpg)
 
@@ -131,7 +131,8 @@ Stáhněte repozitář (zelené tlačítko **Code → Download ZIP** na GitHubu,
 
 Pak Claude Code (nebo Codex, OMP) restartujte.
 
-V **Cursoru** složku `skills/rodokmen` zkopírujte do `~/.cursor/skills/rodokmen/` (na Windows `C:\Users\<jméno>\.cursor\skills\rodokmen\`).
+### Varianta E – ručně do Cursoru
+Složku `skills/rodokmen` zkopírujte do `~/.cursor/skills/rodokmen/` (na Windows `C:\Users\<jméno>\.cursor\skills\rodokmen\`).
 Přes Customize → From GitHub Repository to nejde: ten postup chce `.cursor-plugin/marketplace.json` a tento repozitář má manifest pro Claude Code.
 Podrobnosti jsou v `skills/rodokmen/reference/cursor.md`.
 
@@ -144,7 +145,7 @@ Podrobnosti jsou v `skills/rodokmen/reference/cursor.md`.
    Připravte si, co víte o rodičích, prarodičích a pradědečcích, a rodinné dokumenty (rodné a oddací listy, parte,
    fotky, kroniky) – stačí vyfotit mobilem.
 3. **Příště otevírejte Claude Code přímo ve složce projektu** (`cd ~/Rodokmen && claude`, nebo v aplikaci
-   vyberte tuto složku; v Codexu `cd ~/Rodokmen && codex`, v OMP `cd ~/Rodokmen && omp`). Claude si přečte, kde jste skončili, a naváže.
+   vyberte tuto složku; v Codexu `cd ~/Rodokmen && codex`, v OMP `cd ~/Rodokmen && omp`, v Cursoru otevřete složku projektu). Claude si přečte, kde jste skončili, a naváže.
 
 Chcete nejdřív vidět, jak web vypadá? Řekněte: *„Ukaž mi ukázkový web.“* Claude založí ukázkový projekt
 s vymyšlenou rodinou a spustí náhled.
@@ -170,7 +171,7 @@ skills/rodokmen/
                      metodická příručka (playbook, anglicky)
   tools/             nástroje v Pythonu (ARON, výřezy, rámečky, mapa, kontrola dat, export do webu, vějíř)
   template/          šablona projektu: prázdná data, ukázková rodina, web (Astro)
-.claude-plugin/      instalace jako plugin (Claude Code, Codex i OMP)
+.claude-plugin/      instalace jako plugin (Claude Code, Codex i OMP; Cursor ručně)
 ```
 
 ## Co umí a co ne

@@ -9,5 +9,7 @@ Mění-li se formát mezi `tools/` a `template/web/`, otestuj i aktualizaci proj
 (`novy_projekt.py` na stejnou složku, `npm install`, `npm run data`, `npm run build`).
 
 Skill se vyvíjí a zkouší v Claude Code. Jde použít i v Codexu a OMP (Oh My Pi), které ho instalují ze stejného
-`.claude-plugin/marketplace.json` – ten proto nepřesouvej. Když měníš pokyny vázané na aplikaci (nástroje, příkazy,
-restart), uprav i stávající zmínky o Codexu a OMP, ať si neodporují. V Codexu ani OMP je ověřovat nemusíš.
+`.claude-plugin/marketplace.json` – ten proto nepřesouvej –, a v Cursoru (ruční kopie, `reference/cursor.md`).
+Když měníš pokyny vázané na aplikaci (nástroje, příkazy, restart), uprav i stávající zmínky o Codexu, Cursoru a OMP,
+ať si neodporují. V nich je ověřovat nemusíš. Pokyny projektu jsou v `template/AGENTS.md`; `template/CLAUDE.md` je jen
+odkaz `@AGENTS.md` pro Claude Code – nic dalšího do něj nepiš.

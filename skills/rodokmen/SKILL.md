@@ -30,8 +30,8 @@ Najdeš v ní `tools/` (nástroje), `template/` (šablona projektu a webu) a `re
 ## Na začátku každé konverzace
 1. Jsi ve složce projektu? (`data/STAV.md` existuje.) → Přečti `data/STAV.md`, konec `data/research_log.md`
    a pokračuj podle sekce „Rozpracováno“. Krátce uživateli shrň, kde jste skončili.
-   **Verze:** porovnej soubor `.skill_verze` v projektu se `<složka skillu>/VERZE`. Chybí-li, nebo se liší, řekni jednou větou,
-   že je nová verze skillu, a nabídni aktualizaci projektu: `python3 -I <složka skillu>/tools/novy_projekt.py <složka projektu>`
+   **Verze:** porovnej soubor `.skill_verze` v projektu se `SKILL_DIR/VERZE`. Chybí-li, nebo se liší, řekni jednou větou,
+   že je nová verze skillu, a nabídni aktualizaci projektu: `python3 -I SKILL_DIR/tools/novy_projekt.py <složka projektu>`
    (data zůstanou, změněné soubory webu se zazálohují do `pracovni/`), pak ve `web/` `npm install`. Po souhlasu ji udělej
    a podle výpisu převezmi ze zálohy případné úpravy vzhledu (viz `reference/web.md`). Odmítne-li, připomeň to až příště.
    Aktualizace z verze starší než 0.6.0 přidá brzdu proti zablokování archivem: zeptej se i na hlídač sítě (viz Fáze 0,
@@ -39,6 +39,9 @@ Najdeš v ní `tools/` (nástroje), `template/` (šablona projektu a webu) a `re
    (zákaz `curl`, hlídač) se jinak nemusí projevit hned.
    Po aktualizaci spusť `python3 -I tools/aron_img.py odkazy`: odkazy na ARON z dřívějších verzí otevírají knihu na prvním
    snímku – opraví je `… odkazy --opravit`.
+   Aktualizace přesune pokyny projektu z `CLAUDE.md` do `AGENTS.md` (obsah zůstane, Claude Code je dál načte přes
+   `CLAUDE.md` s odkazem `@AGENTS.md`, původní `CLAUDE.md` zazálohuje do `pracovni/zaloha_pokyny_<datum>/`). Nová pravidla
+   pro projekt pak zapisuj do `AGENTS.md`.
    **Codex:** stojí-li v tvých pokynech k sandboxu, že je síť omezená („Network access is restricted“), nástroje
    na archivy půjdou jen se schválením každého příkazu. Už v prvním shrnutí nabídni povolení sítě pro projekt
    (Fáze 0, krok 3); když už `.codex/config.toml` existuje, chybí restart Codexu ve složce projektu nebo důvěra ke složce.
@@ -52,7 +55,7 @@ Najdeš v ní `tools/` (nástroje), `template/` (šablona projektu a webu) a `re
    ke zdroji msstore („Error reading input in prompt“): `winget install --id <balík> --source winget
    --accept-source-agreements --accept-package-agreements` (balíky `Python.Python.3.12` + `--scope user`,
    `OpenJS.NodeJS.LTS`, `ImageMagick.ImageMagick`, `Git.Git`). Instalace systémových věcí nech uživatele potvrdit.
-   Interaktivní příkazy ať spustí sám: v Claude Code mu je dej s předponou `!`, jinde (Cursor) mu je napiš do chatu
+   Interaktivní příkazy ať spustí sám: v Claude Code mu je dej s předponou `!`, kde předpona `!` není (např. Cursor), mu je napiš do chatu
    jako blok ke zkopírování a počkej, až je spustí.
    **Windows:** `python3` tam bývá jen nefunkční alias z Microsoft Store („Python nebyl nalezen“) – zkontroluj
    `python --version` (případně `py -3 --version`) a ve všech příkazech tohoto skillu místo `python3 -I` používej
@@ -69,7 +72,7 @@ Najdeš v ní `tools/` (nástroje), `template/` (šablona projektu a webu) a `re
    občas spadnou na „unexpected EOF“ – zapiš je do souboru v `pracovni/` a spusť. Tato pravidla zapiš hned po založení projektu do jeho `AGENTS.md` (Claude Code ho načte přes `CLAUDE.md`, ten jen odkazuje na `AGENTS.md`), ať platí i příště
    (a dej je do zadání i pomocníkům, viz `reference/matriky.md`).
 2. Zeptej se, kde má projekt být (navrhni `~/Rodokmen`), a založ ho:
-   `python3 -I <složka skillu>/tools/novy_projekt.py <složka>`
+   `python3 -I SKILL_DIR/tools/novy_projekt.py <složka>`
    Chce-li uživatel nejdřív vidět, jak web vypadá, založ vedle ukázku: `… novy_projekt.py ~/Rodokmen-ukazka --ukazka`,
    pak `cd web && npm install && npm run nahled` a pošli mu odkaz http://localhost:4321.
    Pak se zeptej, jestli zapnout **hlídač sítě** (`… novy_projekt.py <složka> --hlidac`, vypnutí `--bez-hlidace`).

@@ -12,8 +12,8 @@ Cesta je ruční kopie složky `skills/rodokmen`.
 
 V chatu Cursor skill načte podle jména. Stačí napsat „rodokmen“ nebo jinou spouštěcí větu z `SKILL.md`.
 
-Nový projekt dostane `AGENTS.md` se stejným textem jako `CLAUDE.md`. Složku projektu pak otevřete
-v Cursoru i v Claude Code a oba navážou stejně.
+Pokyny projektu jsou v `AGENTS.md`, který Cursor načte sám; `CLAUDE.md` v projektu ho jen načítá pro Claude Code
+(řádek `@AGENTS.md`). Složku projektu pak otevřete v Cursoru i v Claude Code a oba navážou stejně.
 
 Cloud agent vezme skill z repozitáře, když leží v `.cursor/skills/` nebo `.agents/skills/`.
 Osobní skill z domovské složky použije jen se zapnutým
