@@ -29,6 +29,13 @@ SIB_STATUS = {"hotovo": "done", "částečně": "partial"}
 KINDS = {"N": "křest / narození", "O": "sňatek", "Z": "úmrtí", "I": "rejstřík", "S": "sčítání lidu", "J": "jiný pramen"}
 
 
+BEZPECNY_KLIC = re.compile(r"(?!\.)(?!.*\.\.)[\w.-]+")   # klíč = název souboru obrázku: žádné / \ ani „..“ (#25)
+
+
+def bezpecny(key):
+    return isinstance(key, str) and bool(BEZPECNY_KLIC.fullmatch(key))
+
+
 def jload(name, default):
     path = os.path.join(DATA, name)
     if not os.path.exists(path):
@@ -51,6 +58,9 @@ def record_rows():
     for z in jload("zaznamy.json", []):
         sv = svazky.get(z.get("svazek", ""), {})
         key = z["klic"]
+        if not bezpecny(key):
+            print(f"POZOR: zápis s klíčem {key!r} vynechán – klíč smí mít jen písmena, číslice, _ - . (tools/kontrola.py)")
+            continue
         rows.append(dict(
             key=key, kind=z.get("druh", "J"), date=z.get("datum", ""), title=z.get("nazev", key),
             summary=z.get("shrnuti", ""), scan=z.get("snimek", ""),
@@ -59,6 +69,27 @@ def record_rows():
             img=os.path.exists(os.path.join(VYREZY, key + ".jpg")),
             full=os.path.exists(os.path.join(ZDROJE, key + ".jpg")),
         ))
+    return rows
+
+
+def log_rows():
+    """Řádky tabulky deníku (data/research_log.md) podle čísla: {n: dict(n, date, source, range, goal, result)} – pro ISSUES."""
+    rows = {}
+    path = os.path.join(DATA, "research_log.md")
+    if not os.path.exists(path):
+        return rows
+    for line in open(path, encoding="utf-8"):
+        m = re.match(r"^\|\s*(\d+)\s*\|", line)
+        if not m:
+            continue
+        cells = [c.strip() for c in line.strip()[1:-1].split(" | ")]
+        if len(cells) < 6:
+            continue
+        if len(cells) > 7:   # svislítko uvnitř textu výsledku
+            cells = cells[:5] + [" | ".join(cells[5:-1]), cells[-1]]
+        clean = lambda t: re.sub(r"\*\*(.+?)\*\*", r"\1", t).replace("`", "")
+        rows[int(m.group(1))] = dict(n=int(m.group(1)), date=cells[1], source=clean(cells[2]), range=clean(cells[3]),
+                                     goal=clean(cells[4]), result=clean(cells[5]))
     return rows
 
 
@@ -137,7 +168,7 @@ def years(y):
     if y.startswith("*"):
         return "* " + ys[0]
     if len(ys) == 1:
-        return approx + ys[0]
+        return ("před " if re.match(r"před\b", y) else approx) + ys[0]   # „před 1740“ není přesný rok (#25)
     second = "?" if "před" in tail else ("po " if re.search(r"\bpo\b", tail) else "") + \
         ("≈" if re.search(r"(asi|≈)", tail) else "") + ys[-1]
     return f"{approx}{ys[0]}–{second}"
@@ -260,9 +291,11 @@ def main():
             continue
         yv = (p.get("y") or "").strip()
         ys = [] if yv.startswith(("?", "†")) else re.findall(r"\d{4}", yv)   # rok úmrtí do adresy nedávat
-        s = slugify(p["n"] + (" " + ys[0] if ys else ""))
-        if s in used or not s:
-            s = f"{s}-{k}"
+        s = base = slugify(p["n"] + (" " + ys[0] if ys else ""))
+        n = 0
+        while s in used or not s:   # i „jan-3“ už může být obsazené (osoba „Jan 3“) – zkoušet dál (#25)
+            s = (f"{base}-{k}" if not n else f"{base}-{k}-{n}").lstrip("-")
+            n += 1
         used.add(s)
         slugs[k] = s
     for a, c in SAME.items():
@@ -300,7 +333,7 @@ def main():
         )
         if aliases_of.get(k):
             for a in aliases_of[k]:
-                people[slugs[k]]["records"] = list(dict.fromkeys(people[slugs[k]]["records"] + [r for r in P[a].get("r", []) if r in recs]))
+                people[slugs[k]]["records"] = list(dict.fromkeys(people[slugs[k]]["records"] + [r for r in P.get(a, {}).get("r", []) if r in recs]))
             people[slugs[k]]["facts"] = [f for f in people[slugs[k]]["facts"] if not f.startswith("TÁŽ OSOBA")]
 
     # RODINA: osoby mimo přímou linii pro stromový graf. Odkazy: "k12" = přímý předek, "o:zkratka" = osoba z RODINA,
@@ -389,7 +422,10 @@ def main():
         members = [(p["k"], p) for p in people.values() if p["line"] == k]
         members += [(a["k"], p) for p in people.values() for a in p["also"] if a["line"] == k]
         members.sort(key=lambda x: x[0])
-        lines[slugify(name)] = dict(k=k, slug=slugify(name), name=name, desc=desc, color=LINE_COLORS[k],
+        ls = slugify(name) or f"rod-{k}"
+        if ls in lines:   # dva rody stejného jména (dvoje Novákovi) – druhý by přepsal první (#25)
+            ls = f"{ls}-{k}"
+        lines[ls] = dict(k=k, slug=ls, name=name, desc=desc, color=LINE_COLORS[k],
                                     root=slugs.get(k), people=[p["slug"] for _, p in members],
                                     gens={p["slug"]: gen(kk) for kk, p in members})
     lines = {s: l for s, l in lines.items() if l["root"]}
@@ -409,7 +445,7 @@ def main():
             byline = {e.get("rod", 0): []}
         if not byline:
             continue
-        yrs = [int(y) for p in hits for y in re.findall(r"\b1[4-9]\d\d\b", p["y"] or "")]
+        yrs = [int(y) for p in hits for y in re.findall(r"\b(?:1[4-9]|20)\d\d\b", p["y"] or "")]
         places.append(dict(name=name, lat=e["lat"], lon=e["lon"], lines=[dict(k=k, people=v) for k, v in sorted(byline.items())],
                            years=[min(yrs), max(yrs)] if yrs else None, hypothesis=bool(e.get("hypoteza"))))
 
@@ -457,13 +493,23 @@ def main():
                         lead=legacy_fields.get("lead", ""), rod=cfg.get("pribeh", {}).get("rod"),
                         text=legacy_text)]
     has_story = bool(stories)
+    log = log_rows()
+
+    def issue(i):   # otázka: řetězec, dvojice (otázka, stav), nebo dict(otazka, stav, osoby=[Kekulé], prosle=[řádky deníku])
+        if isinstance(i, str):
+            return dict(title=i, text="", people=[], checked=[])
+        if isinstance(i, dict):
+            return dict(title=i.get("otazka", ""), text=i.get("stav", ""),
+                        people=[slugs[SAME.get(k, k)] for k in i.get("osoby", []) if SAME.get(k, k) in slugs],
+                        checked=[log[n] for n in i.get("prosle", []) if n in log])
+        return dict(title=i[0], text=i[1], people=[], checked=[])
     public_cfg = {k: v for k, v in cfg.items() if k != "prihlaseni"}
     public_cfg["maPribeh"] = has_story
     public_cfg["maVicePribehu"] = multi_stories
     public_cfg["pribehy"] = [story["slug"] for story in stories] if multi_stories else []
     site = dict(config=public_cfg, places=places, root=slugs[1], aliases={a: slugs[a] for a in SAME}, people=people,
                 families=families, others=others, records=records, lines=lines,
-                issues=[dict(title=i, text="") if isinstance(i, str) else dict(title=i[0], text=i[1]) for i in ISSUES], stats=stats, hypotheses=hypotheses,
+                issues=[issue(i) for i in ISSUES], stats=stats, hypotheses=hypotheses,
                 docs=[dict(img=d["img"], caption=d["popis"], people=[slugs[k] for k in d.get("osoby", []) if k in slugs])
                       for d in docs_cfg if os.path.exists(os.path.join(VYREZY, d["img"] + ".jpg"))])
 
@@ -490,13 +536,20 @@ def main():
 
     gated = login_files(cfg)
 
-    copied = 0
+    copied = removed = 0
     zv = os.path.join(DATA, "zvyrazneni.json")
     hl_mtime = os.path.getmtime(zv) if os.path.exists(zv) else 0
+    wanted = [k for k in list(recs) + [d["img"] for d in docs_cfg] + ([cfg["uvod"]["foto"]] if cfg.get("uvod", {}).get("foto") else [])
+              if bezpecny(k)]
     for sub, src_dir in (("img", VYREZY), ("zdroje", ZDROJE)):
         dst_dir = os.path.join(WEB, "public", sub)
         os.makedirs(dst_dir, exist_ok=True)
-        for key in list(recs) + [d["img"] for d in docs_cfg] + ([cfg["uvod"]["foto"]] if cfg.get("uvod", {}).get("foto") else []):
+        keep = {k + ".jpg" for k in wanted if os.path.exists(os.path.join(src_dir, k + ".jpg"))}
+        for name in os.listdir(dst_dir):   # obrázky smazaných zápisů nesmí zůstat na webu (#25); složky plní jen export
+            if name.lower().endswith(".jpg") and name not in keep and os.path.isfile(os.path.join(dst_dir, name)):
+                os.remove(os.path.join(dst_dir, name))
+                removed += 1
+        for key in wanted:
             src = os.path.join(src_dir, key + ".jpg")
             dst = os.path.join(dst_dir, key + ".jpg")
             if not os.path.exists(src):
@@ -512,7 +565,7 @@ def main():
             shutil.copy2(src, dst)
             copied += 1
     print(f"{len(people)} osob, {len(families)} rodin, {len(records)} zápisů, {len(lines)} rodů, {len(places)} míst; "
-          f"zkopírováno {copied} obrázků; přihlášení {'zapnuté' if gated else 'VYPNUTÉ (web je otevřený)'}")
+          f"zkopírováno {copied} obrázků{f', smazáno {removed} starých' if removed else ''}; přihlášení {'zapnuté' if gated else 'VYPNUTÉ (web je otevřený)'}")
 
     # odkazy v textech, které nikam nevedou (adresa osoby se změní třeba doplněním roku narození: jan-novak → jan-novak-1798)
     targets = dict(osoba=people, zdroj=recs, rod=lines, rodina=families)
