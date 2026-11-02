@@ -144,8 +144,11 @@ def fetch_published(apu, vol, n, level_offset, out, crop=None):
     if not fid:
         sys.exit(f"Snímek {n} ve svazku nemá soubor PUBLISHED – stáhni ho v prohlížeči ARON.")
     plny = cache.cesta(f"aron/{apu}/sn{n:04d}-plny.jpg")
-    cache.soubor(f"aron/{apu}/sn{n:04d}-plny.jpg", None,
-                 lambda cil: open(cil, "wb").write(get(f"{API}/referencedfiles/{fid}", binary=True)))
+    def stahni(cil):
+        data = get(f"{API}/referencedfiles/{fid}", binary=True)
+        with open(cil, "wb") as f:
+            f.write(data)
+    cache.soubor(f"aron/{apu}/sn{n:04d}-plny.jpg", None, stahni)
     src = plny
     if level_offset:
         src = os.path.join(tempfile.mkdtemp(prefix="aron_"), "zmenseny.jpg")

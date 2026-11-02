@@ -131,8 +131,8 @@ def za_koncem(bid, n, nahled=False):
     a, b = (cache.cesta(f"trebon/{bid}/sn{k:04d}{'-nahled' if nahled else ''}.jpg") for k in (n - 1, n))
     if not (os.path.exists(a) and os.path.exists(b)):
         return False
-    h = lambda p: hashlib.md5(open(p, "rb").read()).hexdigest()
-    return h(a) == h(b)
+    with open(a, "rb") as fa, open(b, "rb") as fb:
+        return hashlib.md5(fa.read()).digest() == hashlib.md5(fb.read()).digest()
 
 
 def stahni(bid, n, out, nahled, MAGICK, ref):

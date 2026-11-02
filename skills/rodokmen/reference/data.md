@@ -49,6 +49,9 @@ P = {
   Nedoloženou samostatnou rodinu nepřipojuj do hlavního stromu (ani do `RODINA`); jako `SIDE` ji veď jen jako
   výslovně označenou stopu u konkrétního možného příbuzného. Jinak ji ponech odděleně v deníku.
 - `ISSUES` – dvojice `("Otázka", "Vyřešeno: … / Hypotéza: … / Otevřené: …")` → stránka „Co hledáme“ (vyřešené se skryjí).
+  Nebo `dict(otazka="…", stav="Otevřené: …", osoby=[12, 13], prosle=[41, 57])`: `osoby` = čísla osob, kterých se otázka týká,
+  `prosle` = čísla řádků deníku s už prověřenými (i neúspěšnými) cestami – export je přidá k otázce (`site.json`: `people`,
+  `checked`), `kontrola.py` ohlídá, že osoby i řádky existují. Po neúspěšném hledání k otevřené otázce přidej číslo řádku.
   Jde na web – nepiš sem citlivé věci (příčiny úmrtí, rodinné spory) bez souhlasu.
 - `HYPOTEZY` – `dict(rod=8, nadpis="…", text="…", polozky=[("jméno", "text")], zaznamy=[klíče])` → stránka rodu.
 - `SAME = {350: 140}` – předek, který je v rodokmenu dvakrát (alias → hlavní číslo; alias v `P` může mít `f=["TÁŽ OSOBA jako 140"]`).
@@ -66,6 +69,9 @@ P = {
 - `shrnuti` je stručný obsahový souhrn, ne doslovný přepis. Při předání výzkumu bez originálního snímku nepřepisuj
   souhrn jako `orig` v `prepisy.json` a nevyráběj výřez ani rámeček; chybějící podklady výslovně poznamenej.
   `kontrola.py` má dál hlásit chybějící výřez nebo přepis.
+- `"bez_vyrezu": true` – zápis záměrně bez obrázku (licence DNNT, doklad, který na web nesmí); kontrola výřez nehlásí.
+- Rodinné doklady (výpis z matriky, dopis, osvědčení) nemají odkaz na portál: dej jim svazek bez `url`
+  (např. `"rodina": {"archiv": "Rodinný archiv", "svazek": "doklady rodiny Novákových"}`) – kontrola pak odkaz nechce.
 
 ## `svazky.json`
 `{"1a0b2337": {"archiv": "SOA Zámrsk – Sbírka matrik…", "portal": "ARON", "svazek": "N Holice 1880–1900, sign. …",
