@@ -3,7 +3,10 @@
 
 Použití:
   ramecek.py <klic> x0,y0,x1,y1 [x0,y0,x1,y1 ...] [--pozn "poznámka"]
-      souřadnice jsou zlomky šířky a výšky obrázku vyrezy/<klic>.jpg (0..1)
+      souřadnice jsou zlomky šířky a výšky obrázku vyrezy/<klic>.jpg (0..1) – tedy VŮČI VÝŘEZU, ne vůči
+      celému snímku stránky (to jsou souřadnice pro vyrez.py). Příklad: výřez je celý zápis, čtený řádek je
+      v jeho horní třetině → 0,0,1,0.33. Souřadnice ze snímku je nutné přepočítat:
+      x_výřez = (x_snímek − x0) / (x1 − x0), stejně y (x0..y1 = oblast, kterou dostal vyrez.py).
       Zapíše rámeček a vytvoří kontrolní obrázek pracovni/ramecek_<klic>.jpg – VŽDY si ho prohlédněte,
       jestli rámeček opravdu obepíná celý čtený zápis (jméno, data, rodiče, poznámky na okraji).
   ramecek.py <klic> --nahled      jen znovu vytvoří kontrolní obrázek

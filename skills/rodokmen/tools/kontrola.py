@@ -12,11 +12,30 @@ for _s in (sys.stdout, sys.stderr):   # UTF-8 výstup i na Windows bez -X utf8 (
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
+BEZPECNY_KLIC = re.compile(r"(?!\.)(?!.*\.\.)[\w.-]+")   # klíč zápisu = název souboru: písmena, číslice, _ - . (ne „..“)
+# Texty, které jsou jen v ukázkové rodině (template/ukazka/web.json) – ne „Novák“, to bývá skutečné příjmení (#37, #54)
+UKAZKA = ("(Ukázka – vymyšlená rodina.)", "(ukázka – odpověď: kovář)", "kovárnu v Holicích čp. 112",
+          "Kováři z Holic a jejich 260 předků")
 
 
 def jload(name, default):
     p = os.path.join(DATA, name)
     return json.load(open(p, encoding="utf-8")) if os.path.exists(p) else default
+
+
+def placeholder(p):
+    """Neznámý rodič („otec neuveden“) – stejně jako v export_web.py."""
+    return str(p.get("n", "")).startswith(("otec neuveden", "matka neuvedena")) or p.get("n") in ("", "?", None)
+
+
+def platne_datum(text):
+    """False jen u data „d. m. rrrr“, které v kalendáři není (31. 2. 1900); jiné tvary (rok, „asi“, rozsah) neřeší."""
+    for d, m, y in re.findall(r"\b(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})\b", text or ""):
+        try:
+            datetime.date(int(y), int(m), int(d))
+        except ValueError:
+            return False
+    return True
 
 
 def research_log_stats(path):
@@ -55,6 +74,9 @@ def main():
     dup = {k for k in keys if keys.count(k) > 1}
     if dup:
         err.append(f"zápisy se stejným klíčem: {sorted(dup)}")
+    for k in keys:   # klíč je i název souboru vyrezy/<klíč>.jpg a adresa stránky – žádné cesty (#25)
+        if isinstance(k, str) and not BEZPECNY_KLIC.fullmatch(k):
+            err.append(f"zápis '{k}': klíč smí mít jen písmena, číslice, _ a - (žádné / \\ ani ..)")
     keys = set(keys)
 
     if 1 not in P:
@@ -101,12 +123,45 @@ def main():
         for r in o.get("r", []):
             if r not in keys:
                 err.append(f"{kde} cituje neexistující zápis '{r}'")
-    for a, c in SAME.items():
-        if c not in P:
+    for a, c in SAME.items():   # alias -> hlavní číslo; export_web s řetězem nebo kruhem spadne (#25, #50)
+        if not isinstance(a, int) or a < 2:
+            err.append(f"SAME: alias {a!r} musí být číslo předka (aspoň 2)")
+        elif a == c:
+            err.append(f"SAME: {a} -> {c} odkazuje sám na sebe")
+        elif c in SAME:
+            err.append(f"SAME: {a} -> {c}, ale {c} je sám alias (-> {SAME[c]}) – odkazuj rovnou na hlavní číslo")
+        elif c not in P:
             err.append(f"SAME: {a} -> {c}, ale osoba {c} neexistuje")
+        elif placeholder(P[c]):
+            err.append(f"SAME: {a} -> {c}, ale osoba {c} je jen „neuveden/a“ – alias musí vést na skutečnou osobu")
     for k in LINES:
         if k not in range(8, 16):
             err.append(f"LINES: rod {k} – rody mají čísla 8 až 15 (pradědečci a prababičky)")
+    jmena_rodu = [v[0] for v in LINES.values() if isinstance(v, (list, tuple)) and v]
+    for jm in sorted({j for j in jmena_rodu if jmena_rodu.count(j) > 1}):
+        warn.append(f"LINES: rod „{jm}“ je tam víckrát – na webu dostanou adresu s číslem rodu (/rod/…-8/), "
+                    f"pro přehlednost je pojmenuj odlišně (např. „Novákové z Holic“)")
+
+    # Otevřené otázky: řetězec, dvojice (otázka, stav), nebo dict(otazka, stav, osoby=[Kekulé], prosle=[řádky deníku])
+    log_cisla = set()
+    log = os.path.join(DATA, "research_log.md")
+    if os.path.exists(log):
+        log_cisla = {int(m.group(1)) for line in open(log, encoding="utf-8") for m in [re.match(r"^\|\s*(\d+)\s*\|", line)] if m}
+    for i in ns.get("ISSUES", []):
+        if isinstance(i, str) or isinstance(i, (list, tuple)) and len(i) == 2:
+            continue
+        if not isinstance(i, dict):
+            err.append(f"ISSUES: položka {str(i)[:60]!r} má být řetězec, dvojice (otázka, stav) nebo dict(otazka=…, stav=…)")
+            continue
+        kde = f"ISSUES „{str(i.get('otazka', '?'))[:50]}“"
+        if not i.get("otazka"):
+            err.append(f"{kde}: chybí 'otazka'")
+        for k in i.get("osoby", []):
+            if k not in P and k not in SAME:
+                err.append(f"{kde}: osoba {k} neexistuje")
+        for n in i.get("prosle", []):
+            if n not in log_cisla:
+                err.append(f"{kde}: řádek deníku {n} v data/research_log.md není")
 
     cited = ({r for p in list(P.values()) + list(R.values()) for r in p.get("r", [])} | {r for s in SIDE for r in s.get("r", [])}
              | {r for h in ns.get("HYPOTEZY", []) if isinstance(h, dict) for r in h.get("zaznamy", [])})
@@ -117,12 +172,18 @@ def main():
                 err.append(f"zápis {k}: chybí pole '{f}'")
         if z.get("svazek") and z["svazek"] not in svazky:
             err.append(f"zápis {k}: svazek '{z['svazek']}' není v data/svazky.json")
+        if z.get("datum") and not platne_datum(z["datum"]):
+            warn.append(f"zápis {k}: datum „{z['datum']}“ neexistuje v kalendáři (den/měsíc?)")
         if z.get("ukazka"):   # vymyšlený zápis ukázkové rodiny – nemá snímek ani přepis
             continue
-        if not z.get("odkaz") and not svazky.get(z.get("svazek", ""), {}).get("url"):
-            warn.append(f"zápis {k}: chybí odkaz na snímek (pole 'odkaz')")
-        if not os.path.exists(os.path.join(ROOT, "vyrezy", k + ".jpg")):
-            warn.append(f"zápis {k}: chybí výřez vyrezy/{k}.jpg")
+        sv = svazky.get(z.get("svazek", ""))
+        # rodinný doklad nebo svazek bez portálu (ve svazky.json bez url) odkaz na snímek mít nemůže (#37)
+        if not z.get("odkaz") and sv is None and not z.get("bez_odkazu"):
+            warn.append(f"zápis {k}: chybí odkaz na snímek (pole 'odkaz'), nebo svazek (rodinný doklad: svazek bez url)")
+        if z.get("bez_vyrezu"):   # záměrně bez obrázku (licence DNNT, doklad, který nesmí na web)
+            pass
+        elif not os.path.exists(os.path.join(ROOT, "vyrezy", k + ".jpg")):
+            warn.append(f"zápis {k}: chybí výřez vyrezy/{k}.jpg (záměrně bez obrázku: \"bez_vyrezu\": true)")
         elif k not in hl:
             warn.append(f"zápis {k}: chybí rámeček (tools/ramecek.py)")
         if k not in prep:
@@ -130,19 +191,31 @@ def main():
         if k not in cited:
             warn.append(f"zápis {k}: necituje ho žádná osoba (doplnit do 'r' u osoby nebo bočního příbuzného)")
 
-    for name, e in jload("mista.json", {}).items():
+    mista = jload("mista.json", {})
+    vyrazy = []
+    for name, e in mista.items():
         if "lat" not in e:
             warn.append(f"místo {name}: nemá souřadnice (spusťte tools/mista.py)")
         try:
-            re.compile(e.get("re") or "")
+            vyrazy.append(re.compile(e.get("re") or re.escape(name)))
         except re.error as ex:
             err.append(f"místo {name}: špatný výraz '{e.get('re')}': {ex}")
+    s_fakty = [k for k, p in P.items() if isinstance(k, int) and k > 1 and p.get("f")]
+    if s_fakty and not mista:   # mapa na webu by zůstala tiše prázdná (#37)
+        warn.append("data/mista.json je prázdný – mapa na webu bude prázdná; obce z faktů osob přidej (tools/mista.py)")
+    elif s_fakty:
+        mimo = [k for k in s_fakty if not any(rx.search(" ".join(P[k].get("f", []))) for rx in vyrazy)]
+        if mimo:
+            warn.append(f"{len(mimo)} osob s fakty není na mapě (žádná obec z mista.json v jejich faktech), "
+                        f"např. {', '.join(map(str, sorted(mimo)[:8]))} – chybí obec v mista.json, nebo její 're'")
 
     cfg = jload("web.json", {})
     # Chybějící přihlašovací otázku nehlásit pořád – ohlídá ji až nasazení (export_web.py --nasazeni).
-    ukazka = ("Rodokmen Novákových", "(ukázka", "vymyšlená rodina", "kovárnu v Holicích čp. 112")
-    if any(u in json.dumps(cfg, ensure_ascii=False) for u in ukazka) and "Novák" not in P.get(1, {}).get("n", ""):
+    if any(u in json.dumps(cfg, ensure_ascii=False) for u in UKAZKA):
         warn.append("web.json: jsou v něm ještě ukázkové texty (Novákovi) – nastav název, příběh a kontakt")
+    zaj = cfg.get("zajimavosti_na_uvodu", [])
+    if not isinstance(zaj, list) or any(not isinstance(z, dict) or not z.get("nadpis") for z in zaj):
+        err.append("web.json: zajimavosti_na_uvodu má být seznam {\"nadpis\": …, \"text\": …} – řetězce ukážou prázdné kartičky")
 
     # Citlivé věci, které jdou na web: ISSUES („Co hledáme“), poznámky a fakta osob, boční příbuzní, texty.
     citlive = re.compile(r"sebevra|vzal[a]? si život|oběsil|zastřelil[a]? se|utopil[a]? se|alkohol|vězen|kriminál|"
@@ -163,7 +236,8 @@ def main():
                     return True
                 i = text.find(s, i + 1)
         return False
-    texty = [("ISSUES", i if isinstance(i, str) else " ".join(i)) for i in ns.get("ISSUES", [])]
+    texty = [("ISSUES", i if isinstance(i, str) else f"{i.get('otazka', '')} {i.get('stav', '')}" if isinstance(i, dict)
+              else " ".join(map(str, i))) for i in ns.get("ISSUES", [])]
     for k, p in P.items():
         text = " ".join(p.get("f", [])) + " " + p.get("note", "")
         roky = [int(y) for y in re.findall(r"\b1[5-9]\d\d|20\d\d\b", p.get("y", "") + " " + text)]
@@ -181,10 +255,12 @@ def main():
                 path = os.path.join(story_dir, name)
                 texty += [(f"pribehy/{name}", odst)
                           for odst in open(path, encoding="utf-8").read().split("\n\n")]
+    rodne_cislo = re.compile(r"\b\d{2}[0156]\d[0-3]\d\s?/\s?\d{3,4}\b")   # 850312/1234 – vždy, nezávisle na roce
     for kde, text in texty:
-        if not recent(text):
+        m = next((m for m in rodne_cislo.finditer(text) if not schvalene(text, m)), None)
+        if not m and not recent(text):
             continue
-        m = next((m for m in citlive.finditer(text) if not schvalene(text, m)), None)
+        m = m or next((m for m in citlive.finditer(text) if not schvalene(text, m)), None)
         if m:
             warn.append(f"CITLIVÉ ({kde}): „…{text[max(0, m.start() - 40):m.end() + 40].strip()}…“ – jde na web; "
                         f"zeptej se uživatele, jestli to tam smí být (reference/soukromi.md); když ano, "
@@ -210,7 +286,7 @@ def main():
     for w in warn:
         print("upozornění:", w)
     if not err and not warn:
-        print("Vše v pořádku.")
+        print("Vše v pořádku – data do sebe zapadají (kontrola struktury, ne toho, že je rodokmen správně).")
     sys.exit(1 if err else 0)
 
 

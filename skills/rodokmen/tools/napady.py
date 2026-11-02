@@ -31,11 +31,14 @@ def load():
 
 
 def event(p, sym):
-    """Všechna data události (* × †) z faktů osoby."""
+    """Všechna přesná data události (* × †) z faktů osoby. Data s „před / po / asi / mezi …“ přesná nejsou – intervaly
+    (sňatek → první dítě, úmrtí → nový sňatek) by z nich vyšly falešně (#25), proto se vynechají."""
     out = []
     for f in p.get("f", []):
         if f.strip().startswith(sym):
             m = re.search(DATE, f)
+            if m and re.search(r"\b(před|po|asi|kolem|mezi|nejpozději|nejdříve|okolo)\b|[≈~]", f[:m.start()], re.I):
+                continue
             if m:
                 try:
                     out.append((datetime.date(int(m.group(3)), int(m.group(2)), int(m.group(1))), f))

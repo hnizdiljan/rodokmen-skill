@@ -4,7 +4,10 @@
 Použití:
   aron_img.py <apu_id> <snimek> [uroven] [vystup.jpg] [x0,y0,x1,y1]
       uroven: 0 = plné rozlišení, 1 = polovina (výchozí), 2 = čtvrtina
-      x0,y0,x1,y1: jen výřez (zlomky 0..1 celé stránky) – stahují se jen potřebné dlaždice
+      x0,y0,x1,y1: jen výřez (zlomky 0..1 celé stránky) – stahují se jen potřebné dlaždice, výsledek je přesně
+                   požadovaná oblast (ne celé dlaždice)
+      Když dlaždicový server ARON nejde (např. vadný certifikát imgx), nástroj stáhne celý snímek náhradní cestou
+      (/api/aron/referencedfiles, plné rozlišení) a zmenšení či výřez udělá sám.
   aron_img.py <apu_id> info          -> název svazku a počet snímků
   aron_img.py <apu_id> link <n>      -> trvalý odkaz na snímek n v prohlížeči ARON (pole "odkaz" v zaznamy.json)
   aron_img.py <apu_id> svazek        -> zapíše svazek do data/svazky.json (klíč = prvních 8 znaků apu_id)
@@ -13,7 +16,7 @@ Použití:
 
 Popis svazků i celé snímky se ukládají do sdílené cache (tools/cache.py): aron/<apu_id>.json a aron/<apu_id>/sn<n>-u<uroven>.jpg.
 """
-import glob, json, math, os, re, shutil, subprocess, sys, tempfile, time, urllib.request
+import glob, json, math, os, re, shutil, ssl, subprocess, sys, tempfile, time, urllib.error, urllib.request
 import concurrent.futures as cf
 import xml.etree.ElementTree as ET
 import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import slusne  # noqa: E402 – brzda proti zablokování archivem (společný limit dotazů, tools/slusne.py)
@@ -28,7 +31,7 @@ CACHE = cache.cesta("aron")
 
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # -I nepřidává složku skriptu
-from obraz import magick   # společný hledač ImageMagicku (tools/obraz.py)
+from obraz import magick, vyrez   # společný hledač ImageMagicku (tools/obraz.py)
 
 
 def get(url, binary=False, tries=4):
@@ -37,8 +40,8 @@ def get(url, binary=False, tries=4):
             with urllib.request.urlopen(url, timeout=90) as r:
                 data = r.read()
             return data if binary else data.decode("utf-8")
-        except OSError:
-            if attempt == tries - 1:
+        except OSError as e:
+            if attempt == tries - 1 or dlazdice_nejdou(e):   # vadný certifikát se opakováním nespraví
                 raise
             time.sleep(2 * (attempt + 1))
 
@@ -78,11 +81,10 @@ def fetch_image(dzi_url, level_offset=1, out="page.jpg", crop=None):
     scale = 2 ** level_offset
     w, h = math.ceil(W / scale), math.ceil(H / scale)
     cols, rows = math.ceil(w / ts), math.ceil(h / ts)
-    c0, r0, c1, r1 = 0, 0, cols - 1, rows - 1
-    if crop:
-        x0, y0, x1, y1 = crop
-        c0, c1 = int(x0 * w // ts), min(cols - 1, int(x1 * w // ts))
-        r0, r1 = int(y0 * h // ts), min(rows - 1, int(y1 * h // ts))
+    x0, y0, x1, y1 = crop or (0, 0, 1, 1)
+    px0, py0 = int(x0 * w), int(y0 * h)                                    # požadovaná oblast v pixelech úrovně
+    px1, py1 = max(px0 + 1, min(w, math.ceil(x1 * w))), max(py0 + 1, min(h, math.ceil(y1 * h)))
+    c0, r0, c1, r1 = px0 // ts, py0 // ts, (px1 - 1) // ts, (py1 - 1) // ts
     base = dzi_url[: -len(".dzi")] + "_files"
     tmp = tempfile.mkdtemp(prefix="aron_")
     try:
@@ -112,10 +114,54 @@ def fetch_image(dzi_url, level_offset=1, out="page.jpg", crop=None):
                 args += ["(", p, "-crop", f"{cw}x{ch}+{ox}+{oy}", "+repage", ")"]
             row_files.append(os.path.join(tmp, f"row_{r}.miff"))   # MIFF zachová vlastnosti JPEG (podvzorkování barev)
             subprocess.run(args + ["+append", row_files[-1]], check=True)
-        subprocess.run([MAGICK, *row_files, "-append", "-quality", "88", out], check=True)
+        # dlaždice pokrývají víc, než je požadováno – oříznout přesně na oblast (souřadnice pak sedí, #25/#37)
+        subprocess.run([MAGICK, *row_files, "-append", "-crop", f"{px1 - px0}x{py1 - py0}+{px0 - c0 * ts}+{py0 - r0 * ts}",
+                        "+repage", "-quality", "88", out], check=True)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)   # uklidit i při chybě stahování nebo magick
     return out, (W, H)
+
+
+def published_by_order(vol):
+    out = {}
+    for dao in vol.get("digitalObjects", []):
+        for f in dao["files"]:
+            if f["type"] == "PUBLISHED":
+                out[f["order"]] = f["id"]
+    return out
+
+
+def dlazdice_nejdou(e):
+    """Chyba spojení s dlaždicovým serverem (certifikát, SSL), kdy pomůže celý snímek přes API."""
+    duvod = getattr(e, "reason", e)
+    return isinstance(e, ssl.SSLError) or isinstance(duvod, ssl.SSLError) or "CERTIFICATE" in str(e).upper()
+
+
+def fetch_published(apu, vol, n, level_offset, out, crop=None):
+    """Náhradní cesta: celý snímek v plném rozlišení přes /api/aron/referencedfiles/<id souboru PUBLISHED> (do cache),
+    zmenšení a výřez lokálně."""
+    fid = published_by_order(vol).get(n)
+    if not fid:
+        sys.exit(f"Snímek {n} ve svazku nemá soubor PUBLISHED – stáhni ho v prohlížeči ARON.")
+    plny = cache.cesta(f"aron/{apu}/sn{n:04d}-plny.jpg")
+    def stahni(cil):
+        data = get(f"{API}/referencedfiles/{fid}", binary=True)
+        with open(cil, "wb") as f:
+            f.write(data)
+    cache.soubor(f"aron/{apu}/sn{n:04d}-plny.jpg", None, stahni)
+    src = plny
+    if level_offset:
+        src = os.path.join(tempfile.mkdtemp(prefix="aron_"), "zmenseny.jpg")
+        subprocess.run([magick(), plny, "-resize", f"{100 / 2 ** level_offset}%", "-quality", "92", src], check=True)
+    try:
+        if crop:
+            vyrez(src, crop, out)
+        elif os.path.abspath(src) != os.path.abspath(out):
+            shutil.copyfile(src, out)
+    finally:
+        if src != plny:
+            shutil.rmtree(os.path.dirname(src), ignore_errors=True)
+    return out
 
 
 ODKAZ = re.compile(r"aron\.vychodoceskearchivy\.cz/apu/([0-9a-f-]{36})/dao/([0-9a-f-]{36})/file/([0-9a-f-]{36})")
@@ -197,9 +243,17 @@ if __name__ == "__main__":
     lo = int(sys.argv[3]) if len(sys.argv) > 3 else 1
     out = sys.argv[4] if len(sys.argv) > 4 else f"{apu[:8]}_{n:04d}.jpg"
     crop = tuple(float(v) for v in sys.argv[5].split(",")) if len(sys.argv) > 5 else None
-    if crop:
-        path, dims = fetch_image(tiles[n], lo, out, crop)
-        print(path, "full size", dims)
-    else:
-        cache.soubor(f"aron/{apu}/sn{n:04d}-u{lo}.jpg", out, lambda cil: fetch_image(tiles[n], lo, cil))
-        print(out)
+    if crop and not (0 <= crop[0] < crop[2] <= 1 and 0 <= crop[1] < crop[3] <= 1):
+        sys.exit(f"Výřez {sys.argv[5]} musí být x0,y0,x1,y1 jako zlomky 0..1 (x0 < x1, y0 < y1).")
+    try:
+        if crop:
+            path, dims = fetch_image(tiles[n], lo, out, crop)
+            print(path, "full size", dims)
+        else:
+            cache.soubor(f"aron/{apu}/sn{n:04d}-u{lo}.jpg", out, lambda cil: fetch_image(tiles[n], lo, cil))
+            print(out)
+    except (OSError, ssl.SSLError) as e:
+        if not dlazdice_nejdou(e):
+            raise
+        print(f"Dlaždicový server ARON nejde ({str(e)[:120]}) – stahuji celý snímek náhradní cestou.", file=sys.stderr)
+        print(fetch_published(apu, vol, n, lo, out, crop))

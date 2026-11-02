@@ -17,6 +17,8 @@ import mza  # noqa: E402
 import obraz  # noqa: E402
 import slusne  # noqa: E402
 
+CURL_HTTP2 = mza.curl_http2   # skutečná funkce (CurlBrzdaTests ji jinak nahrazuje)
+
 HAS_IMAGEMAGICK = bool(obraz.najdi_magick())
 
 
@@ -75,6 +77,11 @@ class SnimekCacheTests(unittest.TestCase):
 
 
 class CurlBrzdaTests(unittest.TestCase):
+    def setUp(self):
+        p = mock.patch.object(mza, "curl_http2", return_value="curl")
+        p.start()
+        self.addCleanup(p.stop)
+
     def test_429_zastavi_web_a_nic_neopakuje(self):
         odpoved = subprocess.CompletedProcess([], 0, stdout=b"Too many429", stderr=b"")
         with mock.patch.object(mza.subprocess, "run", return_value=odpoved) as run, \
@@ -90,6 +97,20 @@ class CurlBrzdaTests(unittest.TestCase):
             with self.assertRaises(slusne.Zastaveno):
                 mza.curl_get("https://www.mza.cz/iipsrv/a_files/12/0_0.jpg")
         self.assertEqual(run.call_count, 1)
+
+    def test_curl_bez_http2_se_preskoci(self):
+        verze = {"bez": "curl 8.21.0 (Windows)\nFeatures: alt-svc AsynchDNS HSTS IPv6 SSL\n",
+                 "s": "curl 8.12.1\nFeatures: alt-svc AsynchDNS HTTP2 HTTPS-proxy IPv6 SSL\n"}
+        with mock.patch.object(mza, "_CURL", []), \
+                mock.patch.object(mza.shutil, "which", side_effect=lambda n: "bez" if n == "curl" else "s"), \
+                mock.patch.object(mza.os.path, "isfile", return_value=True), \
+                mock.patch.object(mza.glob, "glob", return_value=[]), \
+                mock.patch.object(slusne, "_bez_prepisu",
+                                  side_effect=lambda f, a, **k: subprocess.CompletedProcess(a, 0, stdout=verze.get(a[0], verze["bez"]))):
+            self.assertEqual(CURL_HTTP2(), "s")
+            with mock.patch.object(mza.shutil, "which", return_value="bez"), mock.patch.object(mza, "_CURL", []):
+                with self.assertRaises(SystemExit):
+                    CURL_HTTP2()
 
     def test_neplatne_id_knihy_nejde_do_cesty_cache(self):
         with self.assertRaises(SystemExit):

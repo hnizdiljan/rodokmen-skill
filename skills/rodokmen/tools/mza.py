@@ -24,7 +24,7 @@ celé snímky a seznam snímků knihy ukládá do sdílené cache (tools/cache.p
 výřez z už staženého snímku se udělá bez stahování.
 """
 import concurrent.futures as cf
-import html, http.cookiejar, json, math, os, re, shutil, subprocess, sys, tempfile, time, unicodedata, urllib.parse, urllib.request
+import glob, html, http.cookiejar, json, math, os, re, shutil, subprocess, sys, tempfile, time, unicodedata, urllib.parse, urllib.request
 import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import slusne  # noqa: E402 – brzda proti zablokování archivem (společný limit dotazů, tools/slusne.py)
 import cache  # noqa: E402 – sdílená cache stažených snímků (tools/cache.py)
 for _s in (sys.stdout, sys.stderr):   # UTF-8 výstup i na Windows bez -X utf8 (cp1250 neumí třeba „→“)
@@ -57,15 +57,44 @@ def get(url, binary=False):
     raise err
 
 
+_CURL = []
+
+
+def curl_http2():
+    """curl, který umí HTTP/2. Ten ve Windows (C:\\Windows\\System32\\curl.exe) ani v Git Bash ho NEMÁ – iipsrv pak vrací
+    HTTP 426 (#37). Zkusí i curl z winget (cURL.cURL) a z Program Files."""
+    if _CURL:
+        return _CURL[0]
+    kandidati = [shutil.which("curl"), shutil.which("curl.exe")]
+    if os.name == "nt":
+        la = os.environ.get("LOCALAPPDATA", "")
+        kandidati += [os.path.join(la, "Microsoft", "WinGet", "Links", "curl.exe"),
+                      *sorted(glob.glob(os.path.join(la, "Microsoft", "WinGet", "Packages", "cURL.cURL*", "*", "bin", "curl.exe"))),
+                      *sorted(glob.glob(r"C:\Program Files\curl*\bin\curl.exe"))]
+    for c in dict.fromkeys(k for k in kandidati if k and os.path.isfile(k)):
+        try:   # --version bez brzdy (žádná síť) a se skutečným curl, ne s tím, který by vybrala brzda
+            v = slusne._bez_prepisu(subprocess.run, [c, "--version"], capture_output=True, text=True, timeout=20).stdout
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if re.search(r"^Features:.*\bHTTP2\b", v, re.M):
+            _CURL.append(c)
+            return c
+    sys.exit("Obrázky MZA (Acta Publica) vyžadují curl s HTTP/2 a ten tu není (curl ve Windows a v Git Bash HTTP/2 neumí).\n"
+             "Windows: winget install --id cURL.cURL --source winget --accept-source-agreements --accept-package-agreements\n"
+             "a restart Claude Code; macOS a Linux: brew install curl / balíček curl. Jinak snímek v prohlížeči "
+             "(reference/portaly.md, MZA).")
+
+
 def curl_get(url):
-    """Obrázkový server (iipsrv) odpovídá jen na HTTP/2 – Python ho neumí (HTTP 426), proto curl (macOS, Windows 10+, Linux).
-    curl jde přes brzdu (slusne.py přepíše podproces); stavový kód si čteme sami (-w), proto odmítnutí hlásíme brzdě sami."""
-    c = shutil.which("curl") or shutil.which("curl.exe")
-    if not c:
-        sys.exit("Chybí příkaz curl (obrázky MZA vyžadují HTTP/2). Windows 10+ a macOS ho mají; jinak ho nainstaluj.")
+    """Obrázkový server (iipsrv) odpovídá jen na HTTP/2 – Python ho neumí (HTTP 426), proto curl s HTTP/2.
+    curl jde přes brzdu (slusne.py přepíše podproces; SLUSNE_CURL = který curl spustí); stavový kód si čteme sami (-w),
+    proto odmítnutí hlásíme brzdě sami."""
+    c = curl_http2()
+    env = dict(os.environ, SLUSNE_CURL=c)
     err = ""
     for attempt in range(4):
-        r = subprocess.run([c, "-sS", "-m", "90", "-A", "Mozilla/5.0 (rodokmen)", "-w", "%{http_code}", url], capture_output=True)
+        r = subprocess.run([c, "-sS", "--http2", "-m", "90", "-A", "Mozilla/5.0 (rodokmen)", "-w", "%{http_code}", url],
+                           capture_output=True, env=env)
         kod = r.stdout[-3:].decode("ascii", "replace")   # stavový kód připsaný curl za tělo odpovědi
         if r.returncode == 0 and kod == "200":
             return r.stdout[:-3]

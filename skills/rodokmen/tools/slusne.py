@@ -205,7 +205,22 @@ def pockej(url_nebo_host, obrazek=None):
         time.sleep(slot - ted)
 
 
-def zastav(host, duvod):
+def retry_after(hodnota, ted=None):
+    """Hlavička Retry-After v sekundách (číslo nebo datum HTTP), nejvýš 24 h; neplatná nebo chybějící -> 0."""
+    hodnota = (hodnota or "").strip()
+    if hodnota.isdigit():
+        s = int(hodnota)
+    else:
+        try:
+            from email.utils import parsedate_to_datetime
+            s = parsedate_to_datetime(hodnota).timestamp() - (ted or time.time())
+        except (TypeError, ValueError, IndexError, OverflowError):
+            s = 0
+    return max(0, min(int(s), OKNO))
+
+
+def zastav(host, duvod, pockat=0):
+    """Zastaví web pro všechny procesy. pockat = Retry-After od archivu (s): stopka je aspoň tak dlouhá (#37)."""
     skupina, _ = _skupina(host)
     if not skupina:
         return
@@ -215,7 +230,7 @@ def zastav(host, duvod):
         ted = time.time()
         if st.get("stop", 0) <= ted:   # už zastavený web = odpověď na souběžný dotaz, ne nové odmítnutí
             odm = [t for t in st.get("odmitnuti", []) if t > ted - OKNO] + [ted]
-            st.update(stop=ted + STOPKY[min(len(odm), len(STOPKY)) - 1], duvod=duvod,
+            st.update(stop=ted + max(STOPKY[min(len(odm), len(STOPKY)) - 1], pockat), duvod=duvod,
                       kdy=time.strftime("%Y-%m-%d %H:%M"), odmitnuti=odm, poradi=len(odm))
             _uloz(path, st)
     _ohlas(skupina, st)
@@ -234,13 +249,14 @@ def _spojeni_selhalo(host, e):
         zastav(host, f"3 nepovedená spojení za sebou ({type(e).__name__}) – archiv neodpovídá nebo nás zablokoval")
 
 
-def kontroluj_odpoved(host, status, obrazek, telo=None):
+def kontroluj_odpoved(host, status, obrazek, telo=None, ra=None):
     skupina, _ = _skupina(host)
     if not skupina:
         return
     _selhani.pop(skupina, None)
     if status in (429, 503) or (status == 403 and not obrazek):
-        zastav(host, f"HTTP {status}")
+        pockat = retry_after(ra)
+        zastav(host, f"HTTP {status}" + (f", archiv žádá počkat {pockat // 60} min (Retry-After)" if pockat else ""), pockat)
     vzor = BAN_TEXT.get(skupina)
     if vzor and telo and vzor.search(telo):
         zastav(host, "stránka hlásí zablokování")
@@ -277,7 +293,7 @@ def _zapni():
         if skupina in BAN_TEXT and r.status == 200 and "html" in (r.getheader("Content-Type") or ""):
             telo = r.read()             # přečíst a vrátit zpět, aby volající dostal celé tělo
             r.fp, r.length, r.chunked, r.will_close = io.BytesIO(telo), len(telo), False, True
-        kontroluj_odpoved(host, r.status, obr, telo)
+        kontroluj_odpoved(host, r.status, obr, telo, r.getheader("Retry-After"))
         return r
 
     C.putrequest, C.getresponse, C.connect, C._slusne = putrequest, getresponse, connect_, True

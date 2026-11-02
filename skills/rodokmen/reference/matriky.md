@@ -58,6 +58,12 @@ Mladší knihy jsou na matričním úřadě obce s rozšířenou působností / 
    snímku a slep 6–10 pod sebe (`magick … -append`). Pozor: „fol.“ v rejstříku bývá ve skutečnosti pagina (strana);
    eBadatelna v `info` uvádí strany, ne snímky (snímek ≈ dvojstrana). Knihy řazené po vsích mívají oddíl pod starším
    jménem vsi (záhlaví stránek ho prozradí) a první strana oddílu bývá na snímku s předsádkou.
+   Rychle to jde přes **přehled hlaviček**: `python3 -I tools/hlavicky.py <portál> <svazek> 10-200:20 pracovni/hlavicky.jpg`
+   (portál `aron`, `mza`, `ebadatelna`, `trebon`, nebo `soubory "pracovni/sn_{n}.jpg"` pro už stažené snímky) slepí horní
+   pruh (rok, měsíc, obec, oddíl) z vybraných snímků pod sebe s číslem snímku – jedním pohledem vidíš, kde je hledaný rok
+   nebo obec; pak krok zmenši. Stahuje jen pruhy (u ARON a MZA dlaždice), šetrně: nejdřív 5–10 snímků po velkých krocích.
+   `--oblast 0,0,0.3,1 --vedle` místo hlaviček slepí úzké sloupce (čísla domů, jména) vedle sebe – náhrada chybějícího
+   rejstříku u knih řazených po obcích.
    Staré knihy svázané z **ročních výtahů** (Extractus, Consignatio, 18. stol.) nemusí jít po sobě a ročníky chybí;
    rok bývá jen v nadpisu výtahu. Než napíšeš „zápis tam není“, ověř hlavičky ročníků.
    **Nejisté datum** (číslice z pozdější poznámky): nejdřív projdi všechny možné roky v domovské farnosti, teprve pak
@@ -222,8 +228,10 @@ Mladší knihy jsou na matričním úřadě obce s rozšířenou působností / 
 - ImageMagick: seznam souborů předávej jako jednotlivé argumenty, ne jednou proměnnou s mezerami.
   `-annotate` potřebuje písmo: `-font /System/Library/Fonts/Supplemental/Arial.ttf` (bez něj spadne na „unable to read
   font“; totéž `montage` s popisky) – pořadí výřezů raději vypiš zvlášť.
-- Ověření čtení: `python3 -I tools/overit.py <snímek> x0,y0,x1,y1 pracovni/over [v]` (zlomky 0–1, ne pixely) – zápis rozdělený na dvě poloviny
-  zmenšené na 1900 px (dvoustrana je jinak nečitelná).
+- Ověření čtení: `python3 -I tools/overit.py <snímek> x0,y0,x1,y1 pracovni/over [v] [--vylepsit]` (zlomky 0–1, ne pixely) – zápis
+  rozdělený na dvě poloviny (překryv 8 %) zmenšené nejvýš na 1900 × 1900 px (dvoustrana je jinak nečitelná).
+- **Vybledlé snímky:** `--vylepsit` u `overit.py`, `vyrez.py` (navíc `pracovni/vylepseno_<klíč>.jpg`, web zůstane původní)
+  a `hlavicky.py` – šedá, místní kontrast (CLAHE), doostření.
 - Výřez pro web (`vyrez.py`) dělej jen na **čtený zápis** (případně s hlavičkou sloupců), ne na celou dvoustranu –
   na webu by byl nečitelně malý. Celá stránka je v `zdroje/` a na portálu přes odkaz.
 

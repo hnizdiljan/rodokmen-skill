@@ -68,6 +68,11 @@ nebo se změnil (CHYBA) – pak je třeba opravit nástroj i tento návod. Pro p
   Ne každá kniha ho má; prázdný výsledek nebo chybějící písmeno **nedokazuje, že osoba v matrice není**.
   Rejstřík je pomůcka k nalezení zápisu, který pak ověř v samotné matrice.
 - `trebon.py snimek <id_knihy> <snímek> pracovni/x.jpg [nahled]`, `trebon.py svazek <id_knihy>` (do `svazky.json`).
+  Za koncem knihy portál vrací pořád poslední snímek – `snimek` na to upozorní (snímek stejný jako předchozí).
+- **Nejen matriky:** `trebon.py strom` vypíše strom archiválií – `1U` urbáře, `1q` pozemkové (gruntovní) knihy, `1s` sčítání
+  lidu, `1k` kroniky, `1t` vrchnostenská registra (roční soupisy poddaných s věkem). `trebon.py strom 1q` → podsložky
+  (archivy, fondy) a svazky; `trebon.py strom <kód> "Obec"` jen svazky s obcí (1 dotaz na svazek, chvíli trvá),
+  `trebon.py obce <id_knihy>` obce svazku. Snímky stahuje `snimek` stejně jako matriky.
 - Trvalý odkaz: `https://digi.ceskearchivy.cz/<id_knihy>/<snímek>`.
 - Některé fary mají knihy po vesnicích, které nejsou v seznamu svazků místa (Vacov → Žár) – hledej podle titulků knih fary.
 - **Civilní matriky (1920–1945) lidí bez vyznání** jsou v knihách okresních úřadů (např. Tábor, kniha 12304) a mají
@@ -239,7 +244,9 @@ nebo se změnil (CHYBA) – pak je třeba opravit nástroj i tento návod. Pro p
   v knize od 1. Výřez v relativních souřadnicích stáhne jen potřebné dlaždice. `link <id> <snímek>` dá trvalý odkaz
   (`…/matrika/detail/<id>?image=<soubor>`), `svazek <id>` zapíše knihu do `svazky.json` (klíč `mza_<id>`).
 - Snímky jsou IIPImage/DeepZoom na `www.mza.cz/iipsrv/`. **Server přijímá jen HTTP/2** – Python ho neumí (HTTP 426), proto
-  nástroj stahuje dlaždice přes příkaz `curl` (macOS i Windows 10+ ho mají).
+  nástroj stahuje dlaždice přes `curl` s HTTP/2. **curl ve Windows (System32) ani v Git Bash HTTP/2 neumí** – nástroj pak
+  poradí instalaci: `winget install --id cURL.cURL --source winget --accept-source-agreements --accept-package-agreements`
+  a restart Claude Code (nástroj si curl z winget najde sám). macOS má curl s HTTP/2.
 - Rejstříky a „části matriky“ (záložka v prohlížeči) nástroj zatím nevypisuje; jsou-li u knihy, najdeš je na portálu
   a číslo snímku použiješ v `snimek`. Knihy bývají po farnostech a letech, indexy jsou v poli rejstříku u N/O/Z.
 - `snimek` potřebuje ImageMagick (`magick`) a `curl`; hledání, `info`, `link` a `svazek` ne. Pomocníkům to napiš do zadání.
@@ -360,14 +367,14 @@ Náměty na příběh (legionář v rodu, bratři na různých frontách): `prib
 - Karty pražských rodin: hlava rodiny, manželka s rokem a místem narození, děti s roky, adresy, někdy místo sňatku.
   Výborné, když rodina žila v Praze a nevíš farnost (pražské matriky nemají rejstříky).
 - `python3 -I tools/policie_prihlasky.py Kolar [Jan] [1850] [1870]` – příjmení bez diakritiky (začátek jména), jméno a roky
-  narození volitelně. Bez prohlížeče vrátí jen prvních 20 výsledků, proto hledej co nejúžeji.
+  narození volitelně. Výpis projde všechny strany výsledků (web je dává po 20), nejvýš `--stran 5` = 100 – hledej co nejúžeji.
+  Ve výsledcích jsou i manželky a děti; bývají na **stejné kartě** jako hlava rodiny (stejný karton a obraz u víc pořadí je v pořádku).
   Kartu stáhni `policie_prihlasky.py karta <pořadí> pracovni/karta.jpg Kolar [Jan] [1850] [1870]` (stejné hledání; jde i pořadí
-  nad 20) – vypíše citaci a trvalý odkaz (`index.php?action=link&ref=czarch:CZ-100000010:874&karton=K&folium=F`).
+  nad 20) – vypíše, komu pořadí patří, citaci a trvalý odkaz (`index.php?action=link&ref=czarch:CZ-100000010:874&karton=K&folium=F`).
 - **Nepokrývá Smíchov, Vinohrady, Žižkov, Karlín a další předměstí před 1922** (byla to samostatná města) – tak to bylo zjištěno při
   hledání; Národní archiv na své stránce uvádí, že policejní rajon od 1853 zahrnoval i Karlín, Libeň, Smíchov a další, a jiný projekt
   našel po ~1900 i rodiny ze Žižkova a Vinohrad – u předměstí nehledej jistotu v žádném směru a zkus obě cesty. Náboženství karty neuvádějí.
-- Ve výsledcích jsou i manželky a děti (často na téže kartě jako hlava rodiny). Příjmení zadávej bez diakritiky („Simek“).
-  Má-li hledání přes 20 výsledků, rozděl ho podle let narození tak, aby každé mělo nejvýš 20.
+- Příjmení zadávej bez diakritiky („Simek“).
 
 ## Matricula (Rakousko, Německo, Polsko, Itálie, Srbsko, Slovinsko; data.matricula-online.eu) – `tools/matricula.py`, `tools/matricula_*.sh`
 - **`matricula.py` (bez prohlížeče, ověřeno)** najde farnost, knihu a číslo snímku: `oblasti [cesta]` (země a diecéze), `fary oesterreich/wien [slovo]`,
@@ -471,9 +478,12 @@ A když osoba „chybí“ v očekávaných matrikách (stěhovala se se službo
   – jména **německy** („Johann Nowak“, „Wenzel Dworschak“). Výřez místa: `tools/anno_snap.py <docId> "<dotaz>" pracovni/x.jpg`.
   ALEX a annoshow jsou za Cloudflare – neobcházet. Ze zkušebního cloudového prostředí ANNO spojení resetuje (nástroj je v pořádku, jde o síť).
 - Kramerius NK ČR (české noviny, ročenky, adresáře): `python3 -I tools/kramerius.py 'text_ocr:"Jan Novák" AND datum_begin:[1900 TO 1910]'`.
-  Text veřejné stránky: `…/search/api/v5.0/item/<uuid>/streams/TEXT_OCR` (přes `slusne.py curl`) – bývá v **UTF-16**
-  (BOM FF FE); čtený jako UTF-8 nic nenajde. OCR adresářů slévá sousední jména na řádku → fráze v uvozovkách dává
-  falešné shody, ověř na obrázku stránky. U vzácného příjmení ukážou adresáře a věstníky okresních hejtmanství (živnosti
+  Celý OCR text veřejné stránky (kontext k úryvku – obec, živnost, číslo domu): `kramerius.py text <PID> [pracovni/x.txt]`.
+  Neveřejné stránky (DNNT) nástroj nestahuje. OCR adresářů slévá sousední jména na řádku – shodu ověř na obrázku stránky.
+  Učitelé: „Seznam národních škol a jejich učitelstva v ČSR“ (1933) a „Schematismus českého školství na Moravě“ (1910)
+  jsou veřejné a uvádějí rok narození a působiště.
+  Stream `TEXT_OCR` bývá v **UTF-16** (BOM FF FE) – nástroj to zvládne; při vlastním stahování ho nečti jako UTF-8.
+  Fráze v uvozovkách dává kvůli slévání řádků falešné shody. U vzácného příjmení ukážou adresáře a věstníky okresních hejtmanství (živnosti
   s čísly domů), odkud rod je. Panství obce rychle: Sommerův Popis království Českého (Kramerius, veřejný).
 - **Díla nedostupná na trhu (DNNT)** čte jen přihlášený čtenář NK – v uživatelově prohlížeči, po jeho přihlášení, stránku
   po stránce. Celé stránky nestahuj ani nevytahuj jinou cestou (bezpečnostní kontrola to zablokovala jako obcházení
