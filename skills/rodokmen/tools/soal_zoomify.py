@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Snímek matriky ve formátu Zoomify (SOA Litoměřice, ZA Opava) v plném rozlišení – bez prohlížeče a bez cookies.
+"""Snímek matriky ve formátu Zoomify (SOA Litoměřice, ZA Opava, Národní archiv) v plném rozlišení – bez prohlížeče a bez cookies.
 
 Použití (z kořene projektu):
-  soal_zoomify.py <cesta nebo adresa> <zmenseni> <vystup.jpg>
+  soal_zoomify.py <cesta nebo adresa> <zmenseni> <vystup.jpg> [x0,y0,x1,y1]
     cesta     = SOA Litoměřice: část adresy obrázku za „…/CZ-214000010/matriky/“ (konec typicky „….jpg“), vezmi ji jednou
                 z prohlížeče: v digitální badatelně otevři snímek a v síťovém provozu najdi požadavek na
                 https://images.soalitomerice.cz/ximage/matriky/zoomify/cz/archives/CZ-214000010/matriky/<cesta>/ImageProperties.xml
@@ -10,13 +10,15 @@ Použití (z kořene projektu):
     adresa    = celá adresa obrázku začínající https:// (s „/ImageProperties.xml“ na konci i bez), např. ZA Opava:
                 https://images.archives.cz/ximage/matriky/zoomify/cz/archives/CZ-217000010/NAD-165/dao/images/<složka>/<uuid>.jpg
     zmenseni  = 0 plné rozlišení (na čtení a výřez), 1 poloviční (na orientaci), 2 čtvrtinové
+    x0,y0,x1,y1 = volitelný výřez v relativních souřadnicích 0–1 (stáhnou se jen dlaždice, které výřez zasahuje;
+                když je celý snímek už v cache, vyřízne se z něj bez stahování)
 POZOR: aplikace digi.soalitomerice.cz po ~100 rychlých požadavcích (digi.archives.cz v Opavě už po ~75) zablokuje
 přístup na 30 minut. Prohlížečem jen najdi knihu a cestu k obrázkům, snímky pak stahuj tímto nástrojem (obrázkový server
 neomezuje).
 Stažené snímky jsou ve sdílené cache (tools/cache.py). Adresu obrázku si zapiš (např. k zápisu v zaznamy.json),
-příště snímek stáhneš bez prohlížeče a vezme se z cache.
+příště snímek stáhneš bez prohlížeče a vezme se z cache. Výřezy se do cache neukládají.
 """
-import glob, hashlib, math, os, re, shutil, subprocess, sys, tempfile, time, urllib.parse, urllib.request
+import hashlib, math, os, re, shutil, subprocess, sys, tempfile, time, urllib.parse, urllib.request
 import concurrent.futures as cf
 import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import slusne  # noqa: E402 – brzda proti zablokování archivem (společný limit dotazů, tools/slusne.py)
 import cache  # noqa: E402 – sdílená cache stažených snímků (tools/cache.py)
@@ -25,17 +27,10 @@ for _s in (sys.stdout, sys.stderr):   # UTF-8 výstup i na Windows bez -X utf8 (
         _s.reconfigure(encoding="utf-8", errors="replace")
 
 BASE = "https://images.soalitomerice.cz/ximage/matriky/zoomify/cz/archives/CZ-214000010/matriky/"
-HOSTS = ("images.soalitomerice.cz", "images.archives.cz")   # jen obrázkové servery archivů (snímky zpracovává ImageMagick)
+HOSTS = ("images.soalitomerice.cz", "images.archives.cz", "vademecum.nacr.cz")   # jen obrázkové servery archivů (snímky zpracovává ImageMagick)
 
 
-def magick():
-    """Cesta k ImageMagicku; když chybí, skončí hned (před stahováním) srozumitelnou hláškou."""
-    m = (shutil.which("magick") or next(iter(sorted(glob.glob(r"C:\Program Files\ImageMagick*\magick.exe"))), None)
-         or (os.name != "nt" and shutil.which("convert")))   # ImageMagick 6 bez magick; na Windows je convert.exe jiný program
-    if not m:
-        sys.exit("Chybí ImageMagick (příkaz magick). Nainstaluj ho (macOS: brew install imagemagick, "
-                 "Windows: winget install ImageMagick.ImageMagick a restart Claude Code) a spusť nástroj znovu.")
-    return m
+from obraz import magick, vyrez   # společný hledač ImageMagicku a výřez ze snímku na disku (tools/obraz.py)
 
 
 def get(url):
@@ -50,22 +45,33 @@ def get(url):
 
 
 def main():
-    if len(sys.argv) != 4:
+    if len(sys.argv) not in (4, 5):
         sys.exit(__doc__)
     arg = sys.argv[1].strip().removesuffix("/ImageProperties.xml").strip("/")
     base = arg if arg.startswith("http") else BASE + arg
     if urllib.parse.urlsplit(base).scheme != "https" or urllib.parse.urlsplit(base).hostname not in HOSTS:
         sys.exit(f"Adresa musí být https:// na serveru archivu ({', '.join(HOSTS)}), ne {base[:80]}")
     red, out = int(sys.argv[2]), sys.argv[3]
+    box = None
+    if len(sys.argv) == 5:
+        box = [float(v) for v in sys.argv[4].split(",")]
+        if len(box) != 4 or not all(0 <= v <= 1 for v in box) or box[0] >= box[2] or box[1] >= box[3]:
+            sys.exit("Výřez: x0,y0,x1,y1 v rozsahu 0–1 (zleva doprava, shora dolů).")
     u = urllib.parse.urlsplit(base)
     slozka, jmeno = u.path.rstrip("/").split("/")[-2:]
     # obrázek určuje celá adresa (hash); složka a jméno jsou jen pro orientaci
     klic = f"zoomify/{u.hostname}/{slozka}/{os.path.splitext(jmeno)[0]}-{hashlib.sha1(base.encode()).hexdigest()[:8]}-u{red}.jpg"
-    cache.soubor(klic, out, lambda cil: stahni(base, red, cil))
+    if box is None:
+        cache.soubor(klic, out, lambda cil: stahni(base, red, cil))
+    elif os.path.exists(cache.cesta(klic)):   # celý snímek už je v cache: výřez bez stahování
+        print("z cache, bez stahování:", cache.cesta(klic))
+        print("rozměr", *vyrez(cache.cesta(klic), box, out))
+    else:
+        stahni(base, red, out, box)
     print(out)
 
 
-def stahni(base, red, out):
+def stahni(base, red, out, box=None):
     MAGICK = magick()
     x = get(base + "/ImageProperties.xml").decode()
     W, H, T = (int(re.search(fr'{k}="(\d+)"', x).group(1)) for k in ("WIDTH", "HEIGHT", "TILESIZE"))
@@ -81,6 +87,14 @@ def stahni(base, red, out):
     w, h = dims[L]
     nx, ny = math.ceil(w / T), math.ceil(h / T)
     start = sum(counts[:L])
+    if box:   # jen dlaždice, které výřez zasahuje (šetří server i čas)
+        px0, py0 = int(box[0] * w), int(box[1] * h)
+        px1, py1 = px0 + int((box[2] - box[0]) * w), py0 + int((box[3] - box[1]) * h)
+        cx0, cx1, cy0, cy1 = px0 // T, max(px0, px1 - 1) // T, py0 // T, max(py0, py1 - 1) // T
+        geo = f"{max(1, px1 - px0)}x{max(1, py1 - py0)}+{px0 - cx0 * T}+{py0 - cy0 * T}"
+    else:
+        cx0, cx1, cy0, cy1 = 0, nx - 1, 0, ny - 1
+        geo = f"{w}x{h}+0+0"
     d = tempfile.mkdtemp(dir=os.path.dirname(os.path.abspath(out)))
     try:   # dočasnou složku uklidit i při výpadku sítě nebo chybě ImageMagicku
         def tile(yx):
@@ -90,18 +104,18 @@ def stahni(base, red, out):
             with open(f, "wb") as fh:
                 fh.write(get(f"{base}/TileGroup{g}/{L}-{xx}-{y}.jpg"))
         with cf.ThreadPoolExecutor(4) as ex:   # 4 souběžně: několikrát rychlejší, server archivu nezatěžuje víc než 4 prohlížeče
-            list(ex.map(tile, [(y, xx) for y in range(ny) for xx in range(nx)]))
+            list(ex.map(tile, [(y, xx) for y in range(cy0, cy1 + 1) for xx in range(cx0, cx1 + 1)]))
         # řádky dlaždic +append, pak řádky pod sebe -append (montage na ImageMagicku 7.1.2 padá bez písma);
         # krátká jména (cwd=d) a po řádcích: celá stránka v jednom příkazu by na Windows přesáhla limit příkazové řádky
         rows = []
-        for y in range(ny):
+        for y in range(cy0, cy1 + 1):
             rows.append(f"row{y:03d}.miff")   # MIFF zachová vlastnosti JPEG (podvzorkování barev)
-            subprocess.run([MAGICK, *[f"{y:03d}_{xx:03d}.jpg" for xx in range(nx)], "+append", rows[-1]], check=True, cwd=d)
-        subprocess.run([MAGICK, *rows, "-append", "-crop", f"{w}x{h}+0+0", "+repage", "-quality", "88",
+            subprocess.run([MAGICK, *[f"{y:03d}_{xx:03d}.jpg" for xx in range(cx0, cx1 + 1)], "+append", rows[-1]], check=True, cwd=d)
+        subprocess.run([MAGICK, *rows, "-append", "-crop", geo, "+repage", "-quality", "88",
                         os.path.abspath(out)], check=True, cwd=d)
     finally:
         shutil.rmtree(d, ignore_errors=True)
-    print("rozměr", w, h)
+    print("rozměr", *geo.split("+")[0].split("x"))
 
 
 if __name__ == "__main__":

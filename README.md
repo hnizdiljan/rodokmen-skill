@@ -138,10 +138,17 @@ skills/rodokmen/
 ## Co umí a co ne
 - **Hotové nástroje** (bez prohlížeče) mají: východní Čechy (SOA Zámrsk, ARON), jižní Čechy (SOA Třeboň,
   včetně dobrovolnických rejstříků), západní Čechy (SOA Plzeň, Porta fontium), střední Čechy (SOA Praha, eBadatelna –
-  i urbáře a gruntovní knihy) a Prahu (AHMP a policejní přihlášky 1850–1914). Pro severní Čechy (SOA Litoměřice)
-  stahuje snímky nástrojem, knihu ale najde přes prohlížeč. Pro Rakousko je postup přes Matriculu.
-- Ostatní archivy (Brno, Opava) Claude obsluhuje obecným postupem přes prohlížeč.
-  Funguje to, ale je to pomalejší.
+  i urbáře a gruntovní knihy), severní Čechy (SOA Litoměřice), jižní Moravu (MZA Brno, Acta Publica a Encyklopedie dějin města Brna), Prahu
+  (AHMP a policejní přihlášky 1850–1914) a židovské matriky z Národního archivu (Archivní VadeMeCum).
+  Pro Rakousko (Vídeň) a Polsko je to Matricula (nástroj najde farnost a knihu, snímky se čtou v prohlížeči).
+  Slovensko, Maďarsko a Rumunsko skill zatím jen popisuje (FamilySearch, státní archivy).
+- **Vězni a oběti 2. světové války:** čeští vězni v koncentračních táborech (Památník Terezín), Arolsen Archives
+  (Dachau, Mauthausen, Buchenwald, část Osvětimi, nuceně nasazení, vysídlené osoby), zemřelí v Mauthausenu a oběti
+  holocaustu z českých zemí (holocaust.cz).
+- Skript `smoke_test.py` jedním bezpečným dotazem zkontroluje, že všechny síťové nástroje a portály pořád fungují (portály se mění).
+- Ostatní archivy (ZA Opava pro severní Moravu a Slezsko) Claude obsluhuje obecným postupem přes prohlížeč.
+  Opavský portál má ochranu proti robotům a CAPTCHU řeší uživatel, takže je to pomalejší; snímky se stahují nástrojem.
+- Poválečné přistěhovalce (osídlování pohraničí, reemigranti) skill zatím jen radí, kde hledat – hotový nástroj není.
 - U úředníků, vojáků a lékařů hledá i v **dobových novinách** (ANNO, Kramerius) – kariéra, vyznamenání, parte.
 - Umí načíst **rodinný strom z MyHeritage** a dalších služeb (export GEDCOM, z MyHeritage i zálohu stromu z programu
   Family Tree Builder) a udělat z něj plán hledání.
@@ -194,7 +201,7 @@ tady v repozitáři.
   v `%LOCALAPPDATA%`), npm při instalaci webu a přihlášení nástroje pro nasazení (Netlify, CapRover), pokud web
   zveřejňujete. Mimo projekt nic nemažou ani nepřepisují.
 - **Na které servery chodí:** archivní portály (ARON SOA Zámrsk, SOA Třeboň, SOA Plzeň – Porta fontium, SOA Praha –
-  eBadatelna, AHMP, Národní archiv, SOA Litoměřice, Matricula), noviny (ANNO, Kramerius), OpenStreetMap (mapa
+  eBadatelna, MZA Brno – Acta Publica, AHMP, Encyklopedie dějin města Brna, Národní archiv včetně VadeMeCum, Památník Terezín, Arolsen Archives, Mauthausen Memorial, holocaust.cz, SOA Litoměřice, Matricula), noviny (ANNO, Kramerius), OpenStreetMap (mapa
   a souřadnice obcí) a při instalaci webu registr npm.
   Na Netlify jen tehdy, když web sami zveřejníte. Nikam jinam nic neposílají, ani vaše data, ani poznámky.
 - **Doporučení:** nechte v Claude Code zapnuté schvalování příkazů, aspoň dokud si nezvyknete, co Claude dělá.
