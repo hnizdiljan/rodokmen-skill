@@ -27,6 +27,9 @@ Co bývá zajímavé (všechno z jednoho skutečného rodokmenu):
 | Rodinné vyprávění vs. matrika | „rodina říkala Marie, ve skutečnosti Anna“; potvrzená rodinná pověst („babička byla ze statku“) |
 | Ztracený začátek | kde linie končí a proč (shořelé knihy, nemanželské dítě bez otce) |
 | Noviny | výstřižek o jmenování, vyznamenání, penzi, parte – přidej obrázek do `dokumenty.json` |
+| Vojáci a války | legionář v rodu, bratři na různých frontách, raněný ze seznamu ztrát, jméno na pomníku padlých v obci (`portaly.md` → Vojáci a války) |
+| Svatební smlouvy | věno nevěsty, výminek pro rodiče, kdo podepsal křížkem (gruntovní knihy, knihy smluv velkostatku) |
+| Sčítání lidu | kdo s rodinou bydlel (podruzi, čeledín, babička), kdy se rodina přistěhovala (1921: datum příchodu do obce) |
 
 Styl: nadpis `## Krátký a zvědavý`, 2–5 vět, konkrétní data a místa, odkazy na osoby `[Jméno](/osoba/<slug>/)`.
 Nejlepší 2–4 dej i na úvod webu (`web.json` → `zajimavosti_na_uvodu`).

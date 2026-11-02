@@ -186,6 +186,8 @@ Pravidla, která chrání kvalitu (naučená na skutečném projektu):
 - **Ztotožnění míst ověř** podle panství/kraje v zápisu (německé „Langenau“ je v Čechách několikrát – rozhodne „bey Hohenelbe“ = u Vrchlabí).
 - **U úředníků, vojáků, lékařů, učitelů, farářů** zkus noviny a ročenky (`reference/portaly.md` → Noviny): ukážou
   kariéru, tedy kde člověk kdy žil, a dají výstřižky na web. U sedláků a řemeslníků na vsi se nevyplatí.
+- **Muži narození ~1865–1900** prošli 1. světovou válkou: prověř seznamy ztrát (Verlustlisten) a databáze VÚA (legionáři,
+  padlí); při úmrtí 1914–1918 mimo domov nebo „nezvěstný“ hned (`reference/portaly.md` → Vojáci a války).
 - Matriky před ~1650 skoro nejsou. Pro 17. století: soupis poddaných 1651, berní rula 1654, gruntovní knihy (`reference/portaly.md`).
 - **Když matrika nestačí** (původ přistěhovalce či vojáka, chybějící rodiče): písemnosti vrchnosti – soupisy poddaných,
   svatební smlouvy, sirotčí a pozůstalostní spisy (fond „Velkostatek <panství>“); u mlynářů karta mlýna na vodnimlyny.cz;
