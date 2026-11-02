@@ -8,16 +8,22 @@ Použití (z kořene projektu):
                                                                         události, poznámky a FRONTA ZÁPISŮ k vyhledání
   Při shodných jménech spusť výpis osob bez jména a jako kořen zadej jejich GEDCOM ID (např. @I42@).
   … "Jméno Příjmení" --osoby   -> totéž jako kostra pro data/osoby.py (stav "fam", ke kontrole a doplnění)
+  … "Otec" "Matka" --deti       -> rodokmen pro děti dvou rodičů: 2 = otec, 3 = matka, jejich předci 4, 5, 6, 7…
+                                   (osoba 1 = děti; doplň ji v osoby.py ručně)
 
 Výpis je podklad k ručnímu převzetí, osoby do projektu nepřidává. Počet osob ve vstupním souboru proto není počet nových osob.
 
 Fronta zápisů: u každého předka nejmladší známá událost s místem (úmrtí, pak sňatek, pak narození) –
 úmrtní a oddací zápisy uvádějí datum a místo narození i rodiče, proto se hledá od nejmladšího zápisu.
-E-maily a adresy ze stromu se nevypisují.
+E-maily a adresy ze stromu se nevypisují – jen typová pole (EMAIL, ADDR); e-mail v textu poznámky se nahradí
+„[e-mail]“, jiné kontakty v poznámkách (telefon, adresa) ale nástroj nepozná – poznámky před zveřejněním projdi.
+Citace zdrojů (SOUR) se vypíší u osoby jako „zdroj: název (autor), strana“ – u MyHeritage často cizí strom.
+Osoba, která by byla vlastním předkem (chyba ve stromu), se v té větvi přeskočí s upozorněním.
+Víc rodin rodičů (FAMC, např. adopce): bere se rodina s PEDI birth (nebo bez PEDI), ostatní se vypíšou.
 Kódování: UTF-8; starší soubory s hlavičkou „1 CHAR ANSI“ (Brother's Keeper) se čtou jako Windows-1250 a česká data
 („SRPEN 1945“, „PODZIM 1951“, „1926 NEBO 1927“, „11.11.1934“) se převedou na tvar „8. 1945“, „podzim 1951“…
 """
-import datetime, re, sys
+import datetime, html, re, sys
 from collections import defaultdict
 for _s in (sys.stdout, sys.stderr):   # UTF-8 výstup i na Windows bez -X utf8 (cp1250 neumí třeba „→“)
     if hasattr(_s, "reconfigure"):
@@ -46,12 +52,25 @@ def decode(data):
     return data.decode("utf-8", "replace")   # MyHeritage občas rozsekne znak na hranici CONC
 
 
+def slep_conc(data):
+    """CONC v bajtech před dekódováním: MyHeritage dělí řádky uprostřed vícebajtového znaku UTF-8 – po dekódování
+    by z obou půlek byly „�“."""
+    return re.sub(rb"\r?\n[ \t]*\d+[ \t]+CONC(?: |(?=\r?\n))", b"", data)
+
+
 def read(path):
-    raw = decode(open(path, "rb").read()).lstrip("﻿")
+    data = open(path, "rb").read()
+    try:
+        data.decode("utf-8")
+    except UnicodeDecodeError:
+        data = slep_conc(data)
+    raw = decode(data).lstrip("﻿")
     recs, cur, stack = {}, None, []
     for line in raw.splitlines():
         m = re.match(r"\s*(\d+)\s+(@[^@]+@\s+)?(\S+)\s?(.*)$", line)
-        if not m:
+        if not m:   # holé zalomení řádku uvnitř poznámky (MyHeritage) – připojit jako CONT, ať se text neztratí
+            if cur is not None and stack and stack[-1] is not None and line.strip():
+                stack[-1]["val"] = stack[-1].get("val", "") + "\n" + line
             continue
         lvl, xref, tag, val = int(m.group(1)), (m.group(2) or "").strip(), m.group(3), m.group(4)
         if lvl == 0:
@@ -129,13 +148,53 @@ def events(ind, recs):
     return out
 
 
-def parents(ind, recs):
-    for n in sub(ind, "FAMC"):
-        fam = recs.get(n["val"].strip())
-        if fam:
-            h, w = first(fam, "HUSB"), first(fam, "WIFE")
-            return recs.get(h), recs.get(w)
-    return None, None
+def parents(ind, recs, upozorneni=None):
+    """Rodiče z rodiny FAMC. Víc rodin (adopce, pěstouni): přednost má PEDI birth nebo rodina bez PEDI (#25)."""
+    fams = [(n, recs.get(n["val"].strip())) for n in sub(ind, "FAMC")]
+    fams = [(n, f) for n, f in fams if f]
+    if not fams:
+        return None, None
+    pedi = lambda n: first(n, "PEDI").lower()
+    fams.sort(key=lambda nf: pedi(nf[0]) not in ("", "birth"))   # stabilní: jinak pořadí ze souboru
+    if len(fams) > 1 and upozorneni is not None:
+        upozorneni.append(f"{name(ind)}: víc rodin rodičů ({', '.join(f['_id'] + (' ' + pedi(n) if pedi(n) else '') for n, f in fams)})"
+                          f" – použita {fams[0][1]['_id']}")
+    fam = fams[0][1]
+    return recs.get(first(fam, "HUSB")), recs.get(first(fam, "WIFE"))
+
+
+def zdroje(ind, recs):
+    """Citace SOUR u osoby i u jejích událostí: „název (autor), strana“."""
+    out = []
+    uzly = [ind] + [n for n in ind["_sub"] if n["tag"] in EVENTS]
+    for u in uzly:
+        for s in sub(u, "SOUR"):
+            src = recs.get(s.get("val", "").strip())
+            titul = (first(src, "TITL") if src else s.get("val", "")).strip()
+            autor = first(src, "AUTH") if src else ""
+            strana = first(s, "PAGE")
+            txt = titul + (f" ({autor})" if autor else "") + (f", {strana}" if strana else "")
+            if txt.strip() and txt not in out:
+                out.append(txt)
+    return out
+
+
+EMAIL = re.compile(r"[\w.+-]+@[\w-]+(\.[\w-]+)+")
+MISTO_EN = re.compile(r",\s*[^,]*\b(District|Region|County|Bohemia|Moravia)\b[^,]*|,\s*(Czech Republic|Czechia|Česko|Česká republika)\s*$")
+
+
+def kratke_misto(p):
+    """„Obec, Olomouc District, Olomouc Region, Czech Republic“ (MyHeritage) -> „Obec“."""
+    return MISTO_EN.sub("", MISTO_EN.sub("", p)).strip(" ,") or p
+
+
+def rok_s_upresnenim(d):
+    """„před 1861“ -> „před 1861“, „asi 1850“ -> „asi 1850“, „mezi 1933 a 1940“ -> „asi 1933“, přesné datum -> rok."""
+    y = year(d)
+    if not y:
+        return ""
+    pre = re.match(r"(asi|před|po|mezi)\b", d or "")
+    return f"{'asi' if pre.group(1) == 'mezi' else pre.group(1)} {y}" if pre else str(y)
 
 
 def find(recs, query):
@@ -163,15 +222,35 @@ def main():
                 b = next((e for e in events(r, recs) if e[0] == "BIRT"), None)
                 print(f"{r['_id']} | {name(r)} | {('* ' + b[1] + ' ' + b[2]).strip() if b and (b[1] or b[2]) else ''}")
         return
-    start = recs.get(args[0]) or find(recs, args[0])
-    tree, todo = {1: start}, [1]
+    upozorneni = []
+    if "--deti" in sys.argv:   # děti dvou rodičů: kořen 1 je prázdný, 2 = otec, 3 = matka (#30)
+        if len(args) < 2:
+            sys.exit("--deti chce dva kořeny: \"Otec\" \"Matka\" (jména nebo GEDCOM id).")
+        tree = {2: recs.get(args[0]) or find(recs, args[0]), 3: recs.get(args[1]) or find(recs, args[1])}
+        todo = [2, 3]
+    else:
+        tree, todo = {1: recs.get(args[0]) or find(recs, args[0])}, [1]
     while todo:
         k = todo.pop(0)
-        f, m = parents(tree[k], recs)
+        f, m = parents(tree[k], recs, upozorneni)
         for kk, p in ((2 * k, f), (2 * k + 1, m)):
-            if p:
-                tree[kk] = p
-                todo.append(kk)
+            if not p:
+                continue
+            # kruh ve stromu: osoba by byla vlastním předkem – v této větvi dál nepokračovat (#25)
+            linie, c = set(), k
+            while c >= 1 and c in tree:
+                linie.add(tree[c]["_id"])
+                c //= 2
+            if p["_id"] in linie:
+                upozorneni.append(f"{name(p)} ({p['_id']}) by byl(a) vlastním předkem na místě {kk} – chyba ve stromu, větev přeskočena")
+                continue
+            if kk.bit_length() > 40:   # 40 generací – pojistka proti nekonečnému stromu
+                upozorneni.append(f"strom hlubší než 40 generací – dál se nepokračuje (místo {kk})")
+                continue
+            tree[kk] = p
+            todo.append(kk)
+    for u in dict.fromkeys(upozorneni):
+        print("POZOR:", u, file=sys.stderr)
     queue = []
     if as_py:
         print("P = {")
@@ -180,18 +259,24 @@ def main():
         ev = events(ind, recs)
         facts = []
         for tag, d, p, extra in ev:
+            if as_py and p:
+                p = kratke_misto(p)
             if tag == "MARR":
                 facts.append(" ".join(x for x in ("×", d, p, extra) if x))
             elif d or p:   # příčinu úmrtí jen do výpisu, ne do kostry dat (zdravotní údaj)
                 facts.append(" ".join(x for x in (EVENTS[tag], d, p) if x) + (f" ({extra})" if extra and not as_py else ""))
-        facts += [first(n, "OCCU") or n.get("val", "") for n in sub(ind, "OCCU")]
-        notes = [re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", n.get("val", ""))).strip() for n in sub(ind, "NOTE")]
+        povolani = [(first(n, "OCCU") or n.get("val", "")).strip() for n in sub(ind, "OCCU")]
+        facts += list({x.lower(): x for x in reversed(povolani) if x}.values())[::-1]   # „domkař“ + „Domkař“ jen jednou
+        notes = [EMAIL.sub("[e-mail]", re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", n.get("val", ""))))).strip()
+                 for n in sub(ind, "NOTE")]   # MyHeritage: HTML značky i entity (&aacute;)
         notes = [n for n in notes if n]
-        b = next((year(d) for t, d, p, x in ev if t == "BIRT"), None)
-        dd = next((year(d) for t, d, p, x in ev if t == "DEAT"), None)
+        b = next((rok_s_upresnenim(d) for t, d, p, x in ev if t == "BIRT" and year(d)), "")
+        dd = next((rok_s_upresnenim(d) for t, d, p, x in ev if t == "DEAT" and year(d)), "")
         y = f"{b}–{dd}" if b and dd else (f"* {b}" if b else (f"† {dd}" if dd else ""))
         if as_py:
             note = " ".join(notes)   # !r = platný Python i pro uvozovky a „\“ ve jménech a poznámkách (osoby.py se spouští přes exec)
+            if len(note) > 300:
+                print(f"POZOR: poznámka osoby {k} ({name(ind)}) zkrácena na 300 znaků – celou ukáže výpis bez --osoby", file=sys.stderr)
             print(f' {k}: dict(n={name(ind)!r}, y={y!r}, st="fam", f={facts!r}, r=[]' + (f', note={note[:300]!r}' if note else "") + "),")
         else:
             print(f"\n{k} | {name(ind)} | {y}")
@@ -199,6 +284,8 @@ def main():
                 print("   ", f)
             for n in notes:
                 print("    pozn.:", n.replace("\n", " ")[:600])
+            for z in zdroje(ind, recs):
+                print("    zdroj:", z)
         dated = [(t, d, p) for t, d, p, x in ev if p or d]
         for pref in ("DEAT", "BURI", "MARR", "BIRT", "CHR"):
             hit = [e for e in dated if e[0] == pref and e[2]]
